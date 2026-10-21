@@ -42,3 +42,9 @@ body.has-panel #fabs{bottom:calc(env(safe-area-inset-bottom) + 190px)}
 #mkStatus{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 118px);z-index:1500;background:rgba(20,30,45,.85);color:#fff;font:600 13px Inter,system-ui,sans-serif;padding:6px 12px;border-radius:14px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 
 #mkStatus[hidden]{display:none}
+
+#oldDecor{display:none;position:fixed;inset:0;z-index:5;pointer-events:none}
+body.oldchart #oldDecor{display:block}
+#oldDecor .paper{position:absolute;inset:0;mix-blend-mode:multiply;opacity:.35}
+#oldDecor .vig{position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(90,60,25,.5);background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(80,50,20,.22) 100%)}
+#oldDecor .rose{position:absolute;left:10px;bottom:calc(env(safe-area-inset-bottom) + 64px);width:84px;opacity:.85}
