@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v11';
+const APP_VERSION='v12';
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -66,7 +66,9 @@ const map=new maplibregl.Map({container:'map',style,
   center:[+(qs.get('lon')||23.3219),+(qs.get('lat')||42.6977)],zoom:+(qs.get('z')||13),
   maxZoom:20,dragRotate:true,pitchWithRotate:false,touchPitch:false,fadeDuration:150,
   attributionControl:false,maxTileCacheSize:400,
-  transformRequest:u=>{const m=/\/fonts\/(IM%20Fell%20Italic|IM Fell Italic)\/(\d+-\d+)\.pbf/.exec(u);return m?{url:new URL('glyphs/IM%20Fell%20Italic/'+m[2]+'.pbf?v=11',location.href).href}:{url:u}},refreshExpiredTiles:false});
+  transformRequest:u=>{const m=/\/fonts\/(IM%20Fell%20Italic|IM Fell Italic)\/(\d+)-(\d+)\.pbf/.exec(u);if(!m)return{url:u};
+    // local IM Fell covers Latin/Greek (0-1023); other scripts (Cyrillic etc.) fall back to OpenFreeMap Noto Sans Italic
+    return +m[2]<1024?{url:new URL('glyphs/IM%20Fell%20Italic/'+m[2]+'-'+m[3]+'.pbf?v=12',location.href).href}:{url:'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/'+m[2]+'-'+m[3]+'.pbf'}},refreshExpiredTiles:false});
 map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-left');
 map.addControl(new maplibregl.NavigationControl({showZoom:false,visualizePitch:false}),'top-right'); // compass: tap to reset north
 map.touchZoomRotate.enableRotation();
@@ -392,7 +394,7 @@ const GR_BB=[19.3,34.5,29.7,41.8];let staticFeats=null,staticState='idle';
 const inGreece=b=>b.getEast()>GR_BB[0]&&b.getWest()<GR_BB[2]&&b.getNorth()>GR_BB[1]&&b.getSouth()<GR_BB[3];
 async function loadStatic(){if(staticState!=='idle')return;staticState='loading';setStatus('Loading seamarks…');
   let lastErr='';
-  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=11',{credentials:'same-origin',cache:'no-cache'});
+  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=12',{credentials:'same-origin',cache:'no-cache'});
       if(r.redirected&&!new URL(r.url).pathname.endsWith('.geojson'))throw new Error('redirected to '+new URL(r.url).host+new URL(r.url).pathname);
       if(!r.ok)throw new Error('HTTP '+r.status+(r.status===401||r.status===403?' (site login/access)':''));
       const txt=await r.text();let d;try{d=JSON.parse(txt)}catch(_){throw new Error('bad data ('+(r.headers.get('content-type')||'?')+'): '+txt.slice(0,40))}
