@@ -5,11 +5,11 @@ if(qs.get('dev')==='1')localStorage.setItem('navDev','1');if(qs.get('dev')==='0'
 if(localStorage.getItem('navDev')!=='1')return;
 const KEY='navDevState',$=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
 let S=JSON.parse(localStorage.getItem(KEY)||'null')||{lines:[],moves:{},overlay:null};
-let lastDrag=0,undo=[],redo=[],mode='view',active=null,selV=null,shoreType='natural',depthVal=5,drag=null;
+let picked=false,lastDrag=0,undo=[],redo=[],mode='view',active=null,selV=null,shoreType='natural',depthVal=1,drag=null;
 const snap=()=>JSON.stringify(S);
 function commit(prev){undo.push(prev);if(undo.length>100)undo.shift();redo=[];save();render()}
 function save(){localStorage.setItem(KEY,snap())}
-const DEPTHS=[1,2,3,5,10,15,20,30,50];
+const DEPTHS=[0.5,1,1.5,2,2.5,3,3.5,4,4.5];
 // ---------- UI ----------
 const css=`#dev{position:fixed;left:6px;right:6px;bottom:calc(env(safe-area-inset-bottom) + 6px);z-index:3000;font:13px -apple-system,system-ui,sans-serif;pointer-events:none}
 #dev .bar,#dev .sub,#dev .list{pointer-events:auto;background:rgba(20,24,30,.88);color:#fff;border-radius:12px;padding:4px;display:flex;flex-wrap:wrap;gap:4px;box-shadow:0 2px 8px #0006;margin-top:4px}
@@ -34,10 +34,10 @@ let listOpen=false;
 function btn(p,l,f,on,cls){const e=document.createElement('button');e.textContent=l;if(on)e.className='on';if(cls)e.classList.add(cls);e.onclick=ev=>{ev.stopPropagation();f()};p.appendChild(e);return e}
 function sub(){const s=root.querySelector('.sub');s.innerHTML='';
   if(mode==='shore'||mode==='depth'){
-    if(mode==='shore'){const sel=document.createElement('select');for(const t of['natural','pier','breakwater'])sel.add(new Option(t==='natural'?'Natural shore':t[0].toUpperCase()+t.slice(1),t));sel.value=shoreType;sel.onchange=()=>{shoreType=sel.value;const L=cur();if(L){const p=snap();L.type=shoreType;commit(p)}};s.appendChild(sel)}
-    else{const sel=document.createElement('select');for(const d of DEPTHS)sel.add(new Option(d+' m',d));sel.add(new Option('other…','x'));sel.value=DEPTHS.includes(depthVal)?depthVal:'x';
+    if(mode==='shore'){const sel=document.createElement('select');for(const t of['natural','pier','breakwater'])sel.add(new Option(t==='natural'?'Natural shore':t[0].toUpperCase()+t.slice(1),t));{const PL=picked&&cur();if(PL&&PL.type)shoreType=PL.type}sel.value=shoreType;sel.onchange=()=>{shoreType=sel.value;const L=cur();if(L&&(L.pts.length<2||picked)){const p=snap();L.type=shoreType;commit(p)}else{active=null;selV=null;render()}};s.appendChild(sel)}
+    else{const PL=picked&&cur();if(PL&&PL.depth!=null)depthVal=PL.depth;const sel=document.createElement('select');for(const d of DEPTHS)sel.add(new Option(d+' m',String(d)));sel.add(new Option('other…','x'));sel.value=DEPTHS.includes(depthVal)?String(depthVal):'x';
       const inp=document.createElement('input');inp.type='number';inp.inputMode='decimal';inp.step='0.1';inp.style.width='64px';inp.value=depthVal;inp.hidden=sel.value!=='x';
-      const setD=v=>{depthVal=+v;const L=cur();if(L){const p=snap();L.depth=depthVal;commit(p)}};
+      const setD=v=>{if(!(+v>0))return;depthVal=+v;const L=cur();if(L&&(L.pts.length<2||picked)){const p=snap();L.depth=depthVal;commit(p)}else{active=null;selV=null;render()}};
       sel.onchange=()=>{if(sel.value==='x'){inp.hidden=false;inp.focus()}else{inp.hidden=true;setD(sel.value)}};inp.onchange=()=>setD(inp.value);s.append(sel,inp)}
     btn(s,'New',()=>{active=null;selV=null;render()});
     btn(s,'Finish',()=>{active=null;selV=null;render()});
@@ -69,16 +69,30 @@ const cur=()=>S.lines.find(l=>l.id===active);
 const COL={natural:'#ff3d7f',pier:'#ffd400',breakwater:'#00e5ff',depth:'#7cff6b'};
 const bundled=id=>window.BUNDLED_EDIT_IDS&&window.BUNDLED_EDIT_IDS.has(id);
 function fc(){const F=[];for(const L of S.lines){if(bundled(L.id))continue;const c=L.closed&&L.pts.length>2?L.pts.concat([L.pts[0]]):L.pts,col=L.kind==='depth'?COL.depth:COL[L.type];
-    if(c.length>1)F.push({type:'Feature',geometry:{type:'LineString',coordinates:c},properties:{col,act:L.id===active?1:0,lbl:L.kind==='depth'?L.depth+' m':''}});
+    const poly=L.kind==='shore'&&L.closed&&L.pts.length>2,pr=L.kind==='depth'?{edit:'depth_contour',type:'contour',depth:L.depth}:{edit:'shore',type:L.type};
+    if(c.length>1)F.push({type:'Feature',geometry:poly?{type:'Polygon',coordinates:[c]}:{type:'LineString',coordinates:c},properties:pr});
+    if(c.length>1&&L.id===active)F.push({type:'Feature',geometry:{type:'LineString',coordinates:c},properties:{act:1,col}});
     const showV=(mode==='shore'&&L.kind==='shore')||(mode==='depth'&&L.kind==='depth');
     if(showV){L.pts.forEach((p,i)=>F.push({type:'Feature',geometry:{type:'Point',coordinates:p},properties:{v:1,lid:L.id,i,sel:L.id===active&&i===selV?1:0,col}}));
       for(let i=0;i<c.length-1;i++)F.push({type:'Feature',geometry:{type:'Point',coordinates:[(c[i][0]+c[i+1][0])/2,(c[i][1]+c[i+1][1])/2]},properties:{m:1,lid:L.id,i:i+1}})}}
   if(drag&&drag.ghost)F.push({type:'Feature',geometry:{type:'Point',coordinates:drag.ghost},properties:{g:1}});
   return{type:'FeatureCollection',features:F}}
-function render(){const s=map.getSource('dev');if(s)s.setData(fc())}
+function render(){const s=map.getSource('dev');if(s)s.setData(fc());liveMask()}
+const ORIGF={};
+function bufPoly(lines,r){const P=[];for(const pts of lines){if(!pts.length)continue;const la=pts[0][1],kx=r/(111320*Math.cos(la*Math.PI/180)),ky=r/110540;
+  for(const p of pts){const ring=[];for(let k=0;k<=12;k++){const a=k/12*2*Math.PI;ring.push([p[0]+Math.cos(a)*kx,p[1]+Math.sin(a)*ky])}P.push([ring])}
+  for(let i=0;i<pts.length-1;i++){const[a,b]=[pts[i],pts[i+1]];let dx=(b[0]-a[0])/kx,dy=(b[1]-a[1])/ky;const n=Math.hypot(dx,dy)||1;const ox=-dy/n*kx,oy=dx/n*ky;P.push([[[a[0]+ox,a[1]+oy],[b[0]+ox,b[1]+oy],[b[0]-ox,b[1]-oy],[a[0]-ox,a[1]-oy],[a[0]+ox,a[1]+oy]]])}}
+  return P.length?{type:'Feature',properties:{},geometry:{type:'MultiPolygon',coordinates:P}}:null}
+let maskKey='';
+function liveMask(){const vis=S.lines.filter(L=>!bundled(L.id)&&L.pts.length>1);const key=JSON.stringify(vis.map(L=>[L.pts,L.type]));if(key===maskKey)return;maskKey=key;
+  const area=bufPoly(vis.map(L=>L.closed?L.pts.concat([L.pts[0]]):L.pts),150),piers=bufPoly(vis.filter(L=>L.kind==='shore'&&L.type!=='natural').map(L=>L.pts),10);
+  const set=(ids,m)=>{for(const id of ids){if(!map.getLayer(id))continue;if(!(id in ORIGF))ORIGF[id]=map.getFilter(id)||null;const o=ORIGF[id];
+    try{map.setFilter(id,m?(o?['all',o,['!',['within',m]]]:['!',['within',m]]):o)}catch(e){console.warn('dev mask',id,e)}}};
+  set(['dcont','dcontS','dcontLbl'],area);set(['old_pier','old_pierO'],piers)}
 function addLayers(){if(map.getSource('dev'))return;map.addSource('dev',{type:'geojson',data:fc()});
-  map.addLayer({id:'devLine',type:'line',source:'dev',filter:['==',['geometry-type'],'LineString'],layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':['get','col'],'line-width':['case',['==',['get','act'],1],3.5,2.5]}});
-  map.addLayer({id:'devLbl',type:'symbol',source:'dev',filter:['all',['==',['geometry-type'],'LineString'],['!=',['get','lbl'],'']],layout:{'symbol-placement':'line','text-field':['get','lbl'],'text-font':['Noto Sans Bold'],'text-size':11},paint:{'text-color':'#fff','text-halo-color':'#000','text-halo-width':1.5}});
+  for(const l of ueShoreLayers('dv','dev'))map.addLayer(l,'uland');
+  for(const l of ueContLayers('dv','dev','visible'))map.addLayer(l,'ucont');ueTheme('dv');
+  map.addLayer({id:'devLine',type:'line',source:'dev',filter:['==',['get','act'],1],paint:{'line-color':'#ff6d00','line-width':1,'line-opacity':.9,'line-dasharray':[2,2]}});
   map.addLayer({id:'devMid',type:'circle',source:'dev',filter:['has','m'],paint:{'circle-radius':5,'circle-color':'#ffffff','circle-opacity':.55,'circle-stroke-color':'#000','circle-stroke-width':1}});
   map.addLayer({id:'devVtx',type:'circle',source:'dev',filter:['has','v'],paint:{'circle-radius':['case',['==',['get','sel'],1],10,8],'circle-color':['get','col'],'circle-stroke-color':['case',['==',['get','sel'],1],'#fff','#000'],'circle-stroke-width':2}});
   map.addLayer({id:'devGhost',type:'circle',source:'dev',filter:['has','g'],paint:{'circle-radius':14,'circle-color':'#e65100','circle-opacity':.5,'circle-stroke-color':'#fff','circle-stroke-width':2}})}
@@ -95,10 +109,10 @@ const pt=e=>e.lngLat?[e.lngLat.lng,e.lngLat.lat]:null;
 function hit(e,layers){const r=8,p=e.point;return map.queryRenderedFeatures([[p.x-r,p.y-r],[p.x+r,p.y+r]],{layers:layers.filter(l=>map.getLayer(l))})}
 function bind(){
   map.on('click',e=>{if(mode!=='shore'&&mode!=='depth')return;if(drag&&drag.moved||Date.now()-lastDrag<350)return;
-    const v=hit(e,['devVtx'])[0];if(v){active=v.properties.lid;selV=v.properties.i;render();return}
+    const v=hit(e,['devVtx'])[0];if(v){active=v.properties.lid;selV=v.properties.i;picked=true;sub();render();return}
     const m=hit(e,['devMid'])[0];if(m){const L=S.lines.find(l=>l.id===m.properties.lid);if(L){const p=snap();L.pts.splice(m.properties.i,0,pt(e));active=L.id;selV=m.properties.i;commit(p)}return}
     const p=snap();let L=cur();if(!L||(mode==='depth')!==(L.kind==='depth')){L={id:uid(),kind:mode==='depth'?'depth':'shore',type:mode==='depth'?'contour':shoreType,depth:mode==='depth'?depthVal:null,pts:[],closed:false};S.lines.push(L);active=L.id}
-    L.pts.push(pt(e));selV=L.pts.length-1;commit(p)});
+    L.pts.push(pt(e));selV=L.pts.length-1;picked=false;commit(p)});
   const vStart=e=>{if(mode!=='shore'&&mode!=='depth')return;const v=hit(e,['devVtx'])[0];if(!v)return;const L=S.lines.find(l=>l.id===v.properties.lid);if(!L)return;
     if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)return;
     lockPan();drag={kind:'v',L,i:v.properties.i,prev:snap(),moved:false};active=L.id;selV=v.properties.i};
@@ -129,7 +143,7 @@ function setURL(u){if(ovURL&&ovURL!==u)URL.revokeObjectURL(ovURL);ovURL=u}
 function corners(o){const[lo,la]=o.center,kx=1/(111320*Math.cos(la*Math.PI/180)),ky=1/110540,hw=o.w/2,hh=o.w*o.ar/2,a=-o.rot*Math.PI/180;
   return[[-hw,hh],[hw,hh],[hw,-hh],[-hw,-hh]].map(([x,y])=>[lo+(x*Math.cos(a)-y*Math.sin(a))*kx,la+(x*Math.sin(a)+y*Math.cos(a))*ky])}
 function ovPlace(){const o=S.overlay;if(!o||!ovURL)return;const s=map.getSource('devImg'),co=corners(o);
-  if(s)s.setCoordinates(co);else{map.addSource('devImg',{type:'image',url:ovURL,coordinates:co});map.addLayer({id:'devImg',type:'raster',source:'devImg',paint:{'raster-opacity':o.opacity,'raster-fade-duration':0}},'devLine')}}
+  if(s)s.setCoordinates(co);else{map.addSource('devImg',{type:'image',url:ovURL,coordinates:co});map.addLayer({id:'devImg',type:'raster',source:'devImg',paint:{'raster-opacity':o.opacity,'raster-fade-duration':0}},map.getLayer('uland')?'uland':'devLine')}}
 function ovPaint(){if(map.getLayer('devImg'))map.setPaintProperty('devImg','raster-opacity',S.overlay.opacity)}
 function ovRemove(){if(map.getLayer('devImg'))map.removeLayer('devImg');if(map.getSource('devImg'))map.removeSource('devImg');setURL(null);capture()}
 async function ovFromState(){if(!S.overlay){ovRemove();return}if(!ovURL){const b=await idb('get');if(!b){return}setURL(URL.createObjectURL(b))}if(map.getSource('devImg')){map.removeLayer('devImg');map.removeSource('devImg')}ovPlace();ovPaint();capture()}

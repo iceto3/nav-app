@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v27';
+const APP_VERSION='v28';
 // v19: zoomed-out category dots, palette 3 "High-contrast white/ink" (fill, stroke) – satellite/modern and Old chart
 const DOT_COLS={sat:{anchorage:['#6a2c9e','#FFFFFF'],harb:['#0D47A1','#FFFFFF'],fuel:['#E65100','#FFFFFF'],shop:['#9E9E9E','#FFFFFF']},
   old:{anchorage:['#7a3b5a','#F3E9D2'],harb:['#22324F','#F3E9D2'],fuel:['#D2691E','#F3E9D2'],shop:['#9A9286','#F3E9D2']}};
@@ -18,7 +18,7 @@ const EMOD_ATT='Bathymetry © <a href="https://emodnet.ec.europa.eu/en/bathymetr
 // own vector depth contours (EMODnet DTM 2024, CC-BY 4.0) served as PMTiles via HTTP range requests
 const PMT=new pmtiles.Protocol();maplibregl.addProtocol('pmtiles',PMT.tile);
 const DEPTH_ATT='Bathymetry: <a href="https://emodnet.ec.europa.eu/en/bathymetry">EMODnet</a> (CC-BY 4.0)';
-const pmUrl=f=>'pmtiles://'+new URL('data/'+f+'?v=23',location.href).href;
+const pmUrl=f=>'pmtiles://'+new URL('data/'+f+'?v=28',location.href).href;
 const wms=l=>[`${EMOD}?service=WMS&request=GetMap&version=1.1.1&layers=${l}&styles=&format=image/png&transparent=true&srs=EPSG:3857&width=256&height=256&bbox={bbox-epsg-3857}`];
 const raster=(tiles,att,extra={})=>Object.assign({type:'raster',tiles,tileSize:256,attribution:att},extra);
 const FONT_R=['Noto Sans Regular'],FONT_B=['Noto Sans Bold'],FONT_I=['Noto Sans Italic'];
@@ -26,6 +26,25 @@ const FONT_R=['Noto Sans Regular'],FONT_B=['Noto Sans Bold'],FONT_I=['Noto Sans 
 const NAME_EN=['coalesce',['get','name:en'],['get','name_en'],['get','name:latin'],['get','name_int'],['get','name']];
 const OLD_INK='#6b4a2b',FONT_OLD=['Libre Caslon Italic'];
 const HALO={'text-halo-color':'rgba(0,0,0,.75)','text-halo-width':1.6,'text-halo-blur':.4};
+// v28: ONE style for user edits, used by the bundled data (prefix u, source uedits) and live dev drawing (prefix dv, source dev)
+const UE_M=m=>['interpolate',['exponential',2],['zoom'],0,m/61014,22,m/61014*4194304];
+const UE_SHORE=['==',['get','edit'],'shore'],UE_LINE=['==',['geometry-type'],'LineString'],UE_POLY=['==',['geometry-type'],'Polygon'];
+function ueShoreLayers(P,src){return[
+  {id:P+'land',type:'fill',source:src,filter:['all',UE_SHORE,UE_POLY],paint:{'fill-color':'#e9dcc0'}},
+  {id:P+'landO',type:'line',source:src,filter:['all',UE_SHORE,UE_POLY],layout:{'line-join':'round'},paint:{'line-color':OLD_INK,'line-width':1.3}},
+  {id:P+'shore',type:'line',source:src,filter:['all',UE_SHORE,UE_LINE,['==',['get','type'],'natural']],layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':OLD_INK,'line-width':1.3}},
+  {id:P+'pierO',type:'line',source:src,filter:['all',UE_SHORE,UE_LINE,['!=',['get','type'],'natural']],layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':OLD_INK,'line-width':UE_M(9)}},
+  {id:P+'pier',type:'line',source:src,filter:['all',UE_SHORE,UE_LINE,['!=',['get','type'],'natural']],layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':'#e9dcc0','line-width':UE_M(7)}}]}
+function ueContLayers(P,src,vis){const D=['==',['get','edit'],'depth_contour'];return[
+  {id:P+'cont',type:'line',source:src,filter:['all',D,['>',['get','depth'],5]],layout:{visibility:vis,'line-join':'round'},paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],10,.8,13,1.4]}},
+  {id:P+'contS',type:'line',source:src,filter:['all',D,['<=',['get','depth'],5]],layout:{visibility:vis,'line-join':'round'},paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],10,.8,13,1.6],'line-dasharray':[3,2]}},
+  {id:P+'contLbl',type:'symbol',source:src,minzoom:13,filter:D,layout:{visibility:vis,'symbol-placement':'line','symbol-spacing':200,'text-field':['concat',['number-format',['get','depth'],{'max-fraction-digits':1}],' m'],'text-font':FONT_I,'text-size':11,'text-keep-upright':true,'text-max-angle':30},paint:{'text-color':'#e6fbff','text-halo-color':'rgba(0,40,60,.85)','text-halo-width':2.6}}]}
+let OLD_ON=false;
+function ueTheme(P){const on=OLD_ON,sp=(i,k,v)=>{if(map.getLayer(P+i))map.setPaintProperty(P+i,k,v)},sl=(i,k,v)=>{if(map.getLayer(P+i))map.setLayoutProperty(P+i,k,v)};
+  sp('land','fill-color',on?'#e9dcc0':'#cdbf9c');sp('land','fill-opacity',on?1:.92);sp('landO','line-color',on?OLD_INK:'#4a3b24');sp('shore','line-color',on?OLD_INK:'#f4ecd6');sp('shore','line-width',on?1.3:1.6);
+  sp('pierO','line-color',on?OLD_INK:'#3a3a38');sp('pier','line-color',on?'#e9dcc0':'#d9d4c8');
+  sp('cont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');sp('contS','line-color',on?'#2f6f6a':'#bff4ff');sp('cont','line-opacity',on?.75:.85);
+  sl('contLbl','text-font',on?FONT_OLD:FONT_I);sp('contLbl','text-color',on?'#2f5652':'#e6fbff');sp('contLbl','text-halo-color',on?'#b9cfc9':'rgba(0,40,60,.85)')}
 const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
   sources:{
     sat:raster([ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}'],'Imagery © Esri, Maxar, Earthstar Geographics & GIS User Community',{maxzoom:18}),
@@ -35,7 +54,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     depth:raster(wms('emodnet:mean_multicolour'),EMOD_ATT),
     contours:raster(wms('emodnet:contours'),EMOD_ATT),
     dcont:{type:'vector',url:pmUrl('contours.pmtiles'),attribution:DEPTH_ATT},
-    uedits:{type:'geojson',data:'data/user-edits.geojson?v=27'},
+    uedits:{type:'geojson',data:'data/user-edits.geojson?v=28'},
     dbands:{type:'vector',url:pmUrl('bands.pmtiles'),attribution:DEPTH_ATT},
     coast:{type:'vector',url:pmUrl('coast.pmtiles'),attribution:OSM_ATT},
     osmSea:raster(['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],'Seamarks © <a href="https://www.openseamap.org">OpenSeaMap</a>',{maxzoom:18}),
@@ -60,8 +79,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'old_piera',type:'fill',source:'coast','source-layer':'piers',minzoom:12,filter:['==',['geometry-type'],'Polygon'],layout:{visibility:'none'},paint:{'fill-color':'#e9dcc0','fill-outline-color':OLD_INK}},
     {id:'old_pierO',type:'line',source:'coast','source-layer':'piers',minzoom:12,filter:['==',['geometry-type'],'LineString'],layout:{visibility:'none','line-cap':'butt','line-join':'round'},paint:{'line-color':OLD_INK,'line-width':['interpolate',['exponential',2],['zoom'],12,1.6,15,4.5,18,30]}},
     {id:'old_pier',type:'line',source:'coast','source-layer':'piers',minzoom:12,filter:['==',['geometry-type'],'LineString'],layout:{visibility:'none','line-cap':'butt','line-join':'round'},paint:{'line-color':'#e9dcc0','line-width':['interpolate',['exponential',2],['zoom'],12,.4,15,2.5,18,26]}},
-    {id:'old_upierO',type:'line',source:'uedits',minzoom:12,filter:['all',['==',['get','edit'],'shore'],['!=',['get','type'],'natural']],layout:{visibility:'none','line-cap':'butt','line-join':'round'},paint:{'line-color':OLD_INK,'line-width':['interpolate',['exponential',2],['zoom'],0,0.00014750712951125972,22,618.6897433375947]}},
-    {id:'old_upier',type:'line',source:'uedits',minzoom:12,filter:['all',['==',['get','edit'],'shore'],['!=',['get','type'],'natural']],layout:{visibility:'none','line-cap':'butt','line-join':'round'},paint:{'line-color':'#e9dcc0','line-width':['interpolate',['exponential',2],['zoom'],0,0.00011472776739764645,22,481.2031337070181]}},
+    ...ueShoreLayers('u','uedits'),
     ...[[4,.45],[9,.28],[15,.16]].map(([o,op],i)=>({id:'old_crip'+i,type:'line',source:'coast','source-layer':'coast',minzoom:12,layout:{visibility:'none'},paint:{'line-color':OLD_INK,'line-width':.6,'line-blur':.4,'line-opacity':op,'line-offset':o}})),
     {id:'old_ccoast',type:'line',source:'coast','source-layer':'coast',minzoom:12,layout:{visibility:'none'},paint:{'line-color':OLD_INK,'line-width':1.3}},
     {id:'old_bld',type:'fill',source:'omt','source-layer':'building',layout:{visibility:'none'},paint:{'fill-color':'#8a6a45','fill-opacity':.18}},
@@ -77,10 +95,8 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
       paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],10,.8,13,1.6],'line-dasharray':[3,2]}},
     {id:'dcontLbl',type:'symbol',source:'dcont','source-layer':'contours',minzoom:10,layout:{visibility:'none','symbol-placement':'line','symbol-spacing':260,
       'text-field':['concat',['to-string',['get','depth']],' m'],'text-font':FONT_I,'text-size':11,'text-keep-upright':true,'text-max-angle':30},
-      paint:{'text-color':'#e6fbff','text-halo-color':'rgba(0,40,60,.8)','text-halo-width':1.3}},
-    {id:'ucont',type:'line',source:'uedits',filter:['all',['==',['get','edit'],'depth_contour'],['>',['get','depth'],5]],layout:{visibility:'none','line-join':'round'},paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],10,.8,13,1.4]}},
-    {id:'ucontS',type:'line',source:'uedits',filter:['all',['==',['get','edit'],'depth_contour'],['<=',['get','depth'],5]],layout:{visibility:'none','line-join':'round'},paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],10,.8,13,1.6],'line-dasharray':[3,2]}},
-    {id:'ucontLbl',type:'symbol',source:'uedits',minzoom:13,filter:['==',['get','edit'],'depth_contour'],layout:{visibility:'none','symbol-placement':'line','symbol-spacing':200,'text-field':['concat',['to-string',['get','depth']],' m'],'text-font':FONT_I,'text-size':11,'text-keep-upright':true,'text-max-angle':30},paint:{'text-color':'#e6fbff','text-halo-color':'rgba(0,40,60,.8)','text-halo-width':1.3}},
+      paint:{'text-color':'#e6fbff','text-halo-color':'rgba(0,40,60,.85)','text-halo-width':2.6}},
+    ...ueContLayers('u','uedits','none'),
     {id:'osmSea',type:'raster',source:'osmSea',layout:{visibility:'none'}},
     {id:'routeCasing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],10,6,18,14],'line-opacity':.9}},
     {id:'route',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,4,18,10]}},
@@ -107,7 +123,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
         'text-size':['match',['get','class'],'city',16,'town',14,'village',12.5,11],'text-max-width':8,'symbol-sort-key':['match',['get','class'],'city',0,'town',1,'village',2,3]},
       paint:Object.assign({'text-color':'#ffffff'},HALO)}
   ]};
-const BASES={sat:{label:'Satellite (Esri)',layers:['sat']},topo:{label:'Topo map (Esri)',layers:['topo']},osm:{label:'OpenStreetMap (streets)',layers:['osm']},old:{label:'Old chart',layers:['old_bg','old_land','old_water','old_rip0','old_rip1','old_rip2','old_coast','old_csea','old_cland','old_land2','old_inwater','old_piera','old_pierO','old_pier','old_upierO','old_upier','old_crip0','old_crip1','old_crip2','old_ccoast','old_bld','old_roads','old_ferry']}};
+const BASES={sat:{label:'Satellite (Esri)',layers:['sat']},topo:{label:'Topo map (Esri)',layers:['topo']},osm:{label:'OpenStreetMap (streets)',layers:['osm']},old:{label:'Old chart',layers:['old_bg','old_land','old_water','old_rip0','old_rip1','old_rip2','old_coast','old_csea','old_cland','old_land2','old_inwater','old_piera','old_pierO','old_pier','old_crip0','old_crip1','old_crip2','old_ccoast','old_bld','old_roads','old_ferry']}};
 const INIT_BASE=BASES[qs.get('base')]?qs.get('base'):'sat';
 const OVERLAYS={marks:{label:'Seamarks',on:true,layers:['marks','pois','poidots','ltLbl']},labels:{label:'Place & water labels',on:true,layers:['lblWater','lblIsland','lblPlace']},depth:{label:'Depth (EMODnet)'},contours:{label:'Contours (EMODnet WMS)'},dcont:{label:'Depth contours',layers:['dband','dcont','dcontS','dcontLbl','ucont','ucontS','ucontLbl']},osmSea:{label:'OpenSeaMap (legacy raster)'}};
 
@@ -145,7 +161,7 @@ function setOldTheme(on){
   map.setLayoutProperty('dcontLbl','text-font',on?FONT_OLD:FONT_I);
   map.setPaintProperty('dcontLbl','text-color',on?'#2f5652':'#e6fbff');
   map.setPaintProperty('dcontLbl','text-halo-color',on?'#b9cfc9':'rgba(0,40,60,.8)');
-  if(map.getLayer('ucont')){map.setPaintProperty('ucont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');map.setPaintProperty('ucontS','line-color',on?'#2f6f6a':'#bff4ff');map.setLayoutProperty('ucontLbl','text-font',on?FONT_OLD:FONT_I);map.setPaintProperty('ucontLbl','text-color',on?'#2f5652':'#e6fbff');map.setPaintProperty('ucontLbl','text-halo-color',on?'#b9cfc9':'rgba(0,40,60,.8)')}
+  OLD_ON=on;ueTheme('u');ueTheme('dv');
 }
 (function(){const d=document.createElement('div');d.id='oldDecor';d.innerHTML=`<svg class="paper" width="100%" height="100%"><filter id="opn"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="4"/><feColorMatrix values="0 0 0 0 .45 0 0 0 0 .33 0 0 0 0 .18 0 0 0 .55 0"/></filter><filter id="opb"><feTurbulence type="fractalNoise" baseFrequency=".012" numOctaves="2" seed="9"/><feColorMatrix values="0 0 0 0 .5 0 0 0 0 .35 0 0 0 0 .15 0 0 0 .5 -.1"/></filter><rect width="100%" height="100%" filter="url(#opn)"/><rect width="100%" height="100%" filter="url(#opb)"/></svg><div class="vig"></div>
 <svg class="rose" viewBox="-110 -115 220 225" fill="none" stroke="#5a3d1e"><circle r="92" stroke-width="1.2"/><circle r="86" stroke-width=".6"/><circle r="60" stroke-width=".5" stroke-dasharray="2 3"/><g stroke-width=".4" opacity=".6"><path d="M0-86V86M-86 0H86M-61-61L61 61M61-61L-61 61"/></g><g stroke-width=".8"><path d="M0-50L9-9 50 0 9 9 0 50-9 9-50 0-9-9Z" fill="#e9dcc0" transform="rotate(45) scale(.7)"/><path d="M0-80L12-12 80 0 12 12 0 80-12 12-80 0-12-12Z" fill="#efe4cb"/><path d="M0-80L12-12 0 0ZM80 0L12 12 0 0ZM0 80L-12 12 0 0ZM-80 0L-12-12 0 0Z" fill="#7a5530"/></g><circle r="4" fill="#9b3b26" stroke="none"/><path d="M-6-90L0-100 6-90" fill="#9b3b26" stroke="none"/><text y="-102" fill="#5a3d1e" stroke="none" font-family="Georgia,serif" font-style="italic" font-size="16" text-anchor="middle">N</text></svg>`;
@@ -678,11 +694,12 @@ function dedupeHarbours(feats){const H=[],out=[];for(const f of feats)(f.propert
   const G=new Map();H.forEach((f,i)=>{const r=find(i);if(!G.has(r))G.set(r,[]);G.get(r).push(f)});let merged=0;
   for(const g of G.values()){if(g.length===1){out.push(g[0]);continue}merged++;
     const area=g.filter(f=>/^[wr]/.test(f.properties.id)),src=area.length?area:g;
-    const c=[src.reduce((s,f)=>s+f.geometry.coordinates[0],0)/src.length,src.reduce((s,f)=>s+f.geometry.coordinates[1],0)/src.length];
-    const best=g.slice().sort((a,b)=>(nm(b)?1:0)-(nm(a)?1:0)||(b.properties.icon==='marina')-(a.properties.icon==='marina')||a.properties.prio-b.properties.prio)[0];
+    const pin=g.find(f=>window.PINNED_IDS&&window.PINNED_IDS.has(f.properties.id));
+    const c=pin?pin.geometry.coordinates.slice():[src.reduce((s,f)=>s+f.geometry.coordinates[0],0)/src.length,src.reduce((s,f)=>s+f.geometry.coordinates[1],0)/src.length];
+    const best=pin||g.slice().sort((a,b)=>(nm(b)?1:0)-(nm(a)?1:0)||(b.properties.icon==='marina')-(a.properties.icon==='marina')||a.properties.prio-b.properties.prio)[0];
     out.push({type:'Feature',geometry:{type:'Point',coordinates:c},properties:Object.assign({},best.properties,{merged:g.length})})}
   window.__harbourClusters=merged;return out}
-function refreshMarks(){let feats=staticFeats?staticFeats.slice():[];const seen=new Set();for(const fs of cellCache.values())for(const f of fs){if(!seen.has(f.properties.id)){seen.add(f.properties.id);feats.push(f)}}
+function refreshMarks(){let feats=staticFeats?staticFeats.slice():[];const seen=new Set(feats.map(f=>f.properties.id));for(const fs of cellCache.values())for(const f of fs){if(!seen.has(f.properties.id)){seen.add(f.properties.id);feats.push(f)}}
   feats=dedupeHarbours(feats);map.getSource('marks').setData({type:'FeatureCollection',features:feats})}
 // One Overpass request for the bounding box of all missing cells (was: one heavy regex query per cell, serially).
 async function fetchCells(keys){
@@ -704,12 +721,12 @@ async function fetchCells(keys){
 // ---------- static Greek dataset (bundled, cached by SW); live Overpass only outside Greece ----------
 const GR_BB=[19.3,34.5,29.7,41.8];let staticFeats=null,staticState='idle';
 const inGreece=b=>b.getEast()>GR_BB[0]&&b.getWest()<GR_BB[2]&&b.getNorth()>GR_BB[1]&&b.getSouth()<GR_BB[3];
-async function loadPoi(){try{const r=await fetch('data/poi-gr.geojson?v=27',{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
+async function loadPoi(){try{const r=await fetch('data/poi-gr.geojson?v=28',{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
   for(const f of d.features){const t=f.properties,c=classify(t);if(!c)continue;markById.set(t.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:t.id,od:-1,oz:0,icon:c[0],kind:c[1],prio:-c[2],lt:''}})}
   refreshMarks()}catch(e){console.warn('poi data',e)}}
 async function loadStatic(){if(staticState!=='idle')return;staticState='loading';setStatus('Loading seamarks…');
   let lastErr='';
-  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=27',{credentials:'same-origin',cache:'no-cache'});
+  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=28',{credentials:'same-origin',cache:'no-cache'});
       if(r.redirected&&!new URL(r.url).pathname.endsWith('.geojson'))throw new Error('redirected to '+new URL(r.url).host+new URL(r.url).pathname);
       if(!r.ok)throw new Error('HTTP '+r.status+(r.status===401||r.status===403?' (site login/access)':''));
       const txt=await r.text();let d;try{d=JSON.parse(txt)}catch(_){throw new Error('bad data ('+(r.headers.get('content-type')||'?')+'): '+txt.slice(0,40))}
@@ -770,7 +787,7 @@ map.on('error',e=>console.warn('map error',e.error&&e.error.message));window.__m
 if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(e=>console.warn('sw unregister',e));
 if(window.caches)caches.keys().then(k=>Promise.all(k.map(x=>caches.delete(x)))).catch(()=>{});
 // initial base map from ?base= (default Satellite)
-(function(){const apply=()=>{if(INIT_BASE==='sat')return;for(const[k,b]of Object.entries(BASES))b.layers.forEach(id=>map.setLayoutProperty(id,'visibility',k===INIT_BASE?'visible':'none'));setOldTheme(INIT_BASE==='old')};if(map.isStyleLoaded())apply();else map.once('load',apply)})();
+(function(){const apply=()=>{ueTheme('u');if(INIT_BASE==='sat')return;for(const[k,b]of Object.entries(BASES))b.layers.forEach(id=>map.setLayoutProperty(id,'visibility',k===INIT_BASE?'visible':'none'));setOldTheme(INIT_BASE==='old')};if(map.isStyleLoaded())apply();else map.once('load',apply)})();
 
 // auto-update: if the server has a newer APP_VERSION, reload with a cache-busting URL (guarded against loops)
 (function(){const num=v=>+String(v).replace(/\D/g,'')||0;
@@ -782,8 +799,7 @@ if(window.caches)caches.keys().then(k=>Promise.all(k.map(x=>caches.delete(x)))).
   setTimeout(check,3000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check()});
   window.addEventListener('pageshow',e=>{if(e.persisted)check()});})();
 
-// v27: bundled user edits – hide EMODnet contour lines fully within 150 m of user contours
-(function(){const go=()=>fetch('data/user-edits.geojson?v=27').then(r=>r.json()).then(d=>{window.BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'));
-  const m=d.features.find(f=>f.properties.edit==='mask');if(!m)return;const g={type:'Feature',geometry:m.geometry,properties:{}};
-  for(const id of['dcont','dcontS','dcontLbl']){const l=map.getLayer(id);if(!l)continue;try{const f=map.getFilter(id);map.setFilter(id,f?['all',f,['!',['within',g]]]:['!',['within',g]])}catch(e){console.warn('mask',e)}}}).catch(e=>console.warn('user-edits',e));
+// v28: bundled user edits – ids for dev auto-hide; moved ids pinned (EMODnet/OSM under user edits is cut in the pmtiles by devedits/apply.py)
+(function(){const go=()=>fetch('data/user-edits.geojson?v=28').then(r=>r.json()).then(d=>{window.BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'));
+  window.PINNED_IDS=new Set(d.features.filter(f=>f.properties.edit==='move').map(f=>f.properties.target));try{refreshMarks()}catch(e){}}).catch(e=>console.warn('user-edits',e));
   if(map.isStyleLoaded())go();else map.once('load',go)})();
