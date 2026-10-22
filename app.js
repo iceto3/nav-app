@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v13';
+const APP_VERSION='v14';
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -11,6 +11,10 @@ const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/';
 const OSM_ATT='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const EMOD='https://ows.emodnet-bathymetry.eu/wms';
 const EMOD_ATT='Bathymetry © <a href="https://emodnet.ec.europa.eu/en/bathymetry">EMODnet Bathymetry</a>';
+// own vector depth contours (EMODnet DTM 2024, CC-BY 4.0) served as PMTiles via HTTP range requests
+const PMT=new pmtiles.Protocol();maplibregl.addProtocol('pmtiles',PMT.tile);
+const DEPTH_ATT='Bathymetry: <a href="https://emodnet.ec.europa.eu/en/bathymetry">EMODnet</a> (CC-BY 4.0)';
+const pmUrl=f=>'pmtiles://'+new URL('data/'+f+'?v=14',location.href).href;
 const wms=l=>[`${EMOD}?service=WMS&request=GetMap&version=1.1.1&layers=${l}&styles=&format=image/png&transparent=true&srs=EPSG:3857&width=256&height=256&bbox={bbox-epsg-3857}`];
 const raster=(tiles,att,extra={})=>Object.assign({type:'raster',tiles,tileSize:256,attribution:att},extra);
 const FONT_R=['Noto Sans Regular'],FONT_B=['Noto Sans Bold'],FONT_I=['Noto Sans Italic'];
@@ -26,6 +30,8 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     osm:raster(['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],OSM_ATT,{maxzoom:19}),
     depth:raster(wms('emodnet:mean_multicolour'),EMOD_ATT),
     contours:raster(wms('emodnet:contours'),EMOD_ATT),
+    dcont:{type:'vector',url:pmUrl('contours.pmtiles'),attribution:DEPTH_ATT},
+    dbands:{type:'vector',url:pmUrl('bands.pmtiles'),attribution:DEPTH_ATT},
     osmSea:raster(['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],'Seamarks © <a href="https://www.openseamap.org">OpenSeaMap</a>',{maxzoom:18}),
     route:{type:'geojson',data:{type:'FeatureCollection',features:[]}},
     marks:{type:'geojson',data:{type:'FeatureCollection',features:[]},attribution:'Seamarks '+OSM_ATT}
@@ -45,6 +51,15 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'old_ferry',type:'line',source:'omt','source-layer':'transportation',filter:['==',['get','class'],'ferry'],layout:{visibility:'none'},paint:{'line-color':OLD_INK,'line-width':.8,'line-dasharray':[4,3],'line-opacity':.6}},
     {id:'depth',type:'raster',source:'depth',paint:{'raster-opacity':.6},layout:{visibility:'none'}},
     {id:'contours',type:'raster',source:'contours',paint:{'raster-opacity':.8},layout:{visibility:'none'}},
+    {id:'dband',type:'fill',source:'dbands','source-layer':'bands',filter:['>',['get','dmax'],0],layout:{visibility:'none'},
+      paint:{'fill-color':'#9fe8ff','fill-antialias':false,'fill-opacity':['match',['get','dmin'],0,.32,2,.22,5,.13,10,.07,20,.03,0]}},
+    {id:'dcont',type:'line',source:'dcont','source-layer':'contours',filter:['>',['get','depth'],5],layout:{visibility:'none','line-join':'round'},
+      paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],6,['match',['get','depth'],10,.6,.4],13,['match',['get','depth'],10,1.4,1]]}},
+    {id:'dcontS',type:'line',source:'dcont','source-layer':'contours',filter:['<=',['get','depth'],5],layout:{visibility:'none','line-join':'round'},
+      paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],10,.8,13,1.6],'line-dasharray':[3,2]}},
+    {id:'dcontLbl',type:'symbol',source:'dcont','source-layer':'contours',minzoom:10,layout:{visibility:'none','symbol-placement':'line','symbol-spacing':260,
+      'text-field':['concat',['to-string',['get','depth']],' m'],'text-font':FONT_I,'text-size':11,'text-keep-upright':true,'text-max-angle':30},
+      paint:{'text-color':'#e6fbff','text-halo-color':'rgba(0,40,60,.8)','text-halo-width':1.3}},
     {id:'osmSea',type:'raster',source:'osmSea',layout:{visibility:'none'}},
     {id:'routeCasing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],10,6,18,14],'line-opacity':.9}},
     {id:'route',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,4,18,10]}},
@@ -60,7 +75,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
   ]};
 const BASES={sat:{label:'Satellite (Esri)',layers:['sat']},topo:{label:'Topo map (Esri)',layers:['topo']},osm:{label:'OpenStreetMap (streets)',layers:['osm']},old:{label:'Old chart',layers:['old_bg','old_land','old_water','old_rip0','old_rip1','old_rip2','old_coast','old_bld','old_roads','old_ferry']}};
 const INIT_BASE=BASES[qs.get('base')]?qs.get('base'):'sat';
-const OVERLAYS={marks:{label:'Seamarks',on:true},labels:{label:'Place & water labels',on:true,layers:['lblWater','lblIsland','lblPlace']},depth:{label:'Depth (EMODnet)'},contours:{label:'Contours (EMODnet)'},osmSea:{label:'OpenSeaMap (legacy raster)'}};
+const OVERLAYS={marks:{label:'Seamarks',on:true},labels:{label:'Place & water labels',on:true,layers:['lblWater','lblIsland','lblPlace']},depth:{label:'Depth (EMODnet)'},contours:{label:'Contours (EMODnet WMS)'},dcont:{label:'Depth contours',layers:['dband','dcont','dcontS','dcontLbl']},osmSea:{label:'OpenSeaMap (legacy raster)'}};
 
 const map=new maplibregl.Map({container:'map',style,
   center:[+(qs.get('lon')||23.3219),+(qs.get('lat')||42.6977)],zoom:+(qs.get('z')||13),
@@ -84,11 +99,21 @@ function setOldTheme(on){
     map.setPaintProperty(id,'text-color',on?(w?'#3f5f5c':'#4a3018'):o.color);
     map.setPaintProperty(id,'text-halo-color',on?(w?'#b9cfc9':'#e9dcc0'):o.hc);
     map.setPaintProperty(id,'text-halo-width',on?1.5:o.hw);map.setPaintProperty(id,'text-halo-blur',on?0:o.hb);}
+  // depth contours: light cyan on satellite, sepia/teal on old chart
+  map.setPaintProperty('dcont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');
+  map.setPaintProperty('dcontS','line-color',on?'#2f6f6a':'#bff4ff');
+  map.setPaintProperty('dcont','line-opacity',on?.75:.85);
+  map.setPaintProperty('dband','fill-color',on?'#5f9c95':'#9fe8ff');
+  map.setLayoutProperty('dcontLbl','text-font',on?FONT_OLD:FONT_I);
+  map.setPaintProperty('dcontLbl','text-color',on?'#2f5652':'#e6fbff');
+  map.setPaintProperty('dcontLbl','text-halo-color',on?'#b9cfc9':'rgba(0,40,60,.8)');
 }
 (function(){const d=document.createElement('div');d.id='oldDecor';d.innerHTML=`<svg class="paper" width="100%" height="100%"><filter id="opn"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="4"/><feColorMatrix values="0 0 0 0 .45 0 0 0 0 .33 0 0 0 0 .18 0 0 0 .55 0"/></filter><filter id="opb"><feTurbulence type="fractalNoise" baseFrequency=".012" numOctaves="2" seed="9"/><feColorMatrix values="0 0 0 0 .5 0 0 0 0 .35 0 0 0 0 .15 0 0 0 .5 -.1"/></filter><rect width="100%" height="100%" filter="url(#opn)"/><rect width="100%" height="100%" filter="url(#opb)"/></svg><div class="vig"></div>
 <svg class="rose" viewBox="-110 -115 220 225" fill="none" stroke="#5a3d1e"><circle r="92" stroke-width="1.2"/><circle r="86" stroke-width=".6"/><circle r="60" stroke-width=".5" stroke-dasharray="2 3"/><g stroke-width=".4" opacity=".6"><path d="M0-86V86M-86 0H86M-61-61L61 61M61-61L-61 61"/></g><g stroke-width=".8"><path d="M0-50L9-9 50 0 9 9 0 50-9 9-50 0-9-9Z" fill="#e9dcc0" transform="rotate(45) scale(.7)"/><path d="M0-80L12-12 80 0 12 12 0 80-12 12-80 0-12-12Z" fill="#efe4cb"/><path d="M0-80L12-12 0 0ZM80 0L12 12 0 0ZM0 80L-12 12 0 0ZM-80 0L-12-12 0 0Z" fill="#7a5530"/></g><circle r="4" fill="#9b3b26" stroke="none"/><path d="M-6-90L0-100 6-90" fill="#9b3b26" stroke="none"/><text y="-102" fill="#5a3d1e" stroke="none" font-family="Georgia,serif" font-style="italic" font-size="16" text-anchor="middle">N</text></svg>`;
   document.getElementById('map').after(d);
   const r=d.querySelector('.rose');map.on('rotate',()=>r.style.transform=`rotate(${-map.getBearing()}deg)`);})();
+function nfnNote(on){let n=document.getElementById('nfn');if(!n){n=document.createElement('div');n.id='nfn';n.textContent='Depths ≈115 m grid · Not for navigation';
+  n.style.cssText='position:fixed;right:8px;bottom:calc(env(safe-area-inset-bottom) + 30px);z-index:2400;background:rgba(255,255,255,.8);color:#7a1f1f;font:600 10px system-ui,sans-serif;padding:2px 6px;border-radius:6px;pointer-events:none';document.body.appendChild(n)}n.hidden=!on}
 // ---------- layer switcher ----------
 (function(){
   const box=document.createElement('div');box.id='layers';
@@ -98,7 +123,7 @@ function setOldTheme(on){
     l.querySelector('input').onchange=()=>{for(const[k2,b2]of Object.entries(BASES))b2.layers.forEach(id=>map.setLayoutProperty(id,'visibility',k2===k?'visible':'none'));setOldTheme(k==='old')};menu.appendChild(l)}
   menu.insertAdjacentHTML('beforeend','<b>Overlays</b>');
   for(const[k,o]of Object.entries(OVERLAYS)){const l=document.createElement('label');l.innerHTML=`<input type="checkbox"${o.on?' checked':''}> ${o.label}`;
-    l.querySelector('input').onchange=e=>{o.on=e.target.checked;(o.layers||[k]).forEach(id=>map.setLayoutProperty(id,'visibility',o.on?'visible':'none'));if(k==='marks'){if(o.on){setStatus(map.getZoom()<MARK_MINZ?'Zoom in to see seamarks':'Loading seamarks…',map.getZoom()<MARK_MINZ?4000:0);loadMarks()}else setStatus('')}};menu.appendChild(l)}
+    l.querySelector('input').onchange=e=>{o.on=e.target.checked;(o.layers||[k]).forEach(id=>map.setLayoutProperty(id,'visibility',o.on?'visible':'none'));if(k==='dcont')nfnNote(o.on);if(k==='marks'){if(o.on){setStatus(map.getZoom()<MARK_MINZ?'Zoom in to see seamarks':'Loading seamarks…',map.getZoom()<MARK_MINZ?4000:0);loadMarks()}else setStatus('')}};menu.appendChild(l)}
   box.querySelector('#layersBtn').onclick=()=>menu.hidden=!menu.hidden;
   map.on('mousedown',()=>menu.hidden=true);map.on('touchstart',()=>menu.hidden=true);
 })();
