@@ -1,5 +1,9 @@
 'use strict';
-const APP_VERSION='v18';
+const APP_VERSION='v19';
+// v19: zoomed-out category dots, palette 3 "High-contrast white/ink" (fill, stroke) – satellite/modern and Old chart
+const DOT_COLS={sat:{anchorage:['#FFFFFF','#0D47A1'],harb:['#0D47A1','#FFFFFF'],fuel:['#E65100','#FFFFFF'],shop:['#9E9E9E','#FFFFFF']},
+  old:{anchorage:['#F3E9D2','#22324F'],harb:['#22324F','#F3E9D2'],fuel:['#A0522D','#F3E9D2'],shop:['#9A9286','#F3E9D2']}};
+function DOTPAL(old,i){const p=DOT_COLS[old?'old':'sat'];return['match',['get','icon'],'anchorage',p.anchorage[i],['marina','harbour'],p.harb[i],'fuel',p.fuel[i],p.shop[i]]}
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -63,13 +67,16 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'osmSea',type:'raster',source:'osmSea',layout:{visibility:'none'}},
     {id:'routeCasing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],10,6,18,14],'line-opacity':.9}},
     {id:'route',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,4,18,10]}},
-    {id:'marks',type:'symbol',source:'marks',minzoom:11,layout:{'icon-image':['concat','D_',['get','icon']],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
+    {id:'dots',type:'circle',source:'marks',minzoom:5,filter:['any',['all',['in',['get','icon'],['literal',['anchorage','marina','harbour','fuel']]],['<',['zoom'],11.2]],['all',['==',['get','icon'],'shop'],['any',['<',['zoom'],14],['!',['has','hasIcon']]]]],layout:{'circle-sort-key':['match',['get','icon'],'shop',0,'fuel',1,2]},paint:{'circle-color':DOTPAL(false,0),'circle-stroke-color':DOTPAL(false,1),'circle-radius':['interpolate',['linear'],['zoom'],8,['match',['get','icon'],'anchorage',4.5,'fuel',3.5,'shop',2.6,5],11,['match',['get','icon'],'anchorage',6,'fuel',4.5,'shop',3.2,6.5]],'circle-stroke-width':['match',['get','icon'],'fuel',1.5,'shop',1,2],'circle-opacity':['match',['get','icon'],'shop',.85,1]}},
+    {id:'marks',type:'symbol',source:'marks',minzoom:11,
+      filter:['case',['in',['get','icon'],['literal',['anchorage','marina','harbour','fuel']]],['>=',['zoom'],11.2],['==',['get','icon'],'shop'],['>=',['zoom'],14],['>=',['zoom'],13]],
+      paint:{'icon-opacity':['interpolate',['linear'],['zoom'],13,['match',['get','icon'],['anchorage','marina','harbour','fuel','shop'],1,.7],14,1]},layout:{'icon-image':['concat','D_',['get','icon']],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
       'symbol-sort-key':['get','prio'],
       'icon-size':['interpolate',['linear'],['zoom'],11,['match',['get','icon'],'light_major',.7,.5],14,['match',['get','icon'],'light_major',.95,.75],17,1.05]}},
-    {id:'ltLbl',type:'symbol',source:'marks',minzoom:11,filter:['!=',['coalesce',['get','lt'],''],''],layout:{'text-field':['get','lt'],'text-font':FONT_I,
+    {id:'ltLbl',type:'symbol',source:'marks',minzoom:13,filter:['!=',['coalesce',['get','lt'],''],''],layout:{'text-field':['get','lt'],'text-font':FONT_I,
       'text-size':['interpolate',['linear'],['zoom'],11,11,15,13],'text-optional':true,'text-max-width':16,
       'symbol-sort-key':['get','prio'],'text-variable-anchor':['left','right','top','bottom'],'text-radial-offset':1.1},
-      paint:{'text-color':'#fff4d6','text-halo-color':'rgba(22,14,4,.92)','text-halo-width':2.2,'text-halo-blur':.3}},
+      paint:{'text-opacity':['interpolate',['linear'],['zoom'],13,.7,14,1],'text-color':'#fff4d6','text-halo-color':'rgba(22,14,4,.92)','text-halo-width':2.2,'text-halo-blur':.3}},
     {id:'lblWater',type:'symbol',source:'omt','source-layer':'water_name',layout:{'text-field':NAME_EN,'text-font':FONT_I,'text-size':['interpolate',['linear'],['zoom'],5,11,12,14],'text-max-width':8,'symbol-placement':'point'},paint:Object.assign({'text-color':'#bfe6ff'},HALO)},
     {id:'lblIsland',type:'symbol',source:'omt','source-layer':'place',filter:['in',['get','class'],['literal',['island','islet']]],minzoom:8,layout:{'text-field':NAME_EN,'text-font':FONT_I,'text-size':12},paint:Object.assign({'text-color':'#fff5d6'},HALO)},
     {id:'lblPlace',type:'symbol',source:'omt','source-layer':'place',filter:['in',['get','class'],['literal',['city','town','village','hamlet','suburb','neighbourhood']]],
@@ -106,6 +113,7 @@ function setOldTheme(on){
   map.setPaintProperty('ltLbl','text-halo-color',on?'#e9dcc0':'rgba(22,14,4,.92)');map.setPaintProperty('ltLbl','text-halo-width',on?1.4:2.2);
   map.setPaintProperty('ltLbl','text-color',on?'#3d2612':'#fff4d6');map.setLayoutProperty('ltLbl','text-font',on?FONT_OLD:FONT_I);
   map.setLayoutProperty('marks','icon-image',['concat',on?'':'D_',['get','icon']]);
+  map.setPaintProperty('dots','circle-color',DOTPAL(on,0));map.setPaintProperty('dots','circle-stroke-color',DOTPAL(on,1));
   // depth contours: light cyan on satellite, sepia/teal on old chart
   map.setPaintProperty('dcont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');
   map.setPaintProperty('dcontS','line-color',on?'#2f6f6a':'#bff4ff');
@@ -129,7 +137,7 @@ function nfnNote(on){let n=document.getElementById('nfn');if(!n){n=document.crea
  sl.oninput=()=>map.jumpTo({zoom:+sl.value});map.on('zoom',upd);upd()}
 // ---------- scale bar: metric + NM (modern) / checkered (Old chart) ----------
 const drawScale=(()=>{const b=document.createElement('div');b.id='scaleBar';document.body.appendChild(b);
-  const M=[5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,100000],NM=[0.02,0.05,0.1,0.2,0.5,1,2,5,10,20,50];
+  const NICE=(lo,hi)=>{const o=[];for(let e=lo;e<=hi;e++)for(const f of [1,1.5,2,2.5,3,4,5])o.push(+(f*Math.pow(10,e)).toPrecision(3));return o},M=NICE(0,5),NM=NICE(-2,2);
   const pick=(a,u,mx)=>{const p=156543.03392*Math.cos(map.getCenter().lat*Math.PI/180)/Math.pow(2,map.getZoom());let v=a[0];for(const x of a)if(x*u/p<=mx)v=x;return[v,v*u/p]};
   const fm=m=>m>=1000?(m/1000)+' km':m+' m',pos='position:fixed;z-index:2300;left:10px;bottom:calc(env(safe-area-inset-bottom) + 92px);pointer-events:none;';
   const lift=()=>{const a=document.querySelector('.maplibregl-ctrl-attrib');if(a)b.style.bottom=(innerHeight-a.getBoundingClientRect().top+8)+'px'};
@@ -139,7 +147,7 @@ const drawScale=(()=>{const b=document.createElement('div');b.id='scaleBar';docu
       b.innerHTML=`<div style="text-align:center">Scale of Metres · ${fm(m)}</div><div style="display:flex">${seg(w)}</div><div style="display:flex;margin-top:2px">${seg(wn)}</div><div style="text-align:center">${n} Nautical Miles</div>`}
     else{b.style.cssText=pos+'background:rgba(255,255,255,.82);border-radius:6px;padding:3px 6px 4px;font:600 10px system-ui,sans-serif;color:#222';
       b.innerHTML=`<div>${fm(m)}</div><div style="width:${w}px;height:4px;border:1.5px solid #222;border-top:none"></div><div style="width:${wn}px;height:4px;border:1.5px solid #1a4f8a;border-bottom:none;margin-top:1px"></div><div style="color:#1a4f8a">${n} NM</div>`}lift()}})();
-map.on('move',drawScale);drawScale();
+map.on('move',drawScale);map.on('zoom',drawScale);map.on('moveend',drawScale);drawScale();
 // ---------- layer switcher ----------
 (function(){
   const box=document.createElement('div');box.id='layers';
@@ -552,6 +560,7 @@ const CAT_BG={north:'north',south:'south',east:'east',west:'west',port:'port',st
 function classify(t){
   const st=t['seamark:type']||'';
   if(t.leisure==='marina'||st==='harbour'&&/marina/.test(t['seamark:harbour:category']||''))return['marina',TYPE_BG.marina,5];
+  if(/^(boat|chandler|ship_chandler|marine|fishing)$/.test(t.shop||'')||/chandler/.test(t['seamark:small_craft_facility:category']||''))return['shop','Boat shop',2];
   if(t.waterway==='fuel'||/fuel/.test(t['seamark:small_craft_facility:category']||''))return['fuel',TYPE_BG.fuel,5];
   if(st==='harbour')return['harbour',TYPE_BG.harbour,4];
   if(st==='anchorage')return['anchorage',TYPE_BG.anchorage,4];
@@ -590,13 +599,29 @@ function toFeature(e){
   const id=e.type+e.id;markById.set(id,t);
   return{type:'Feature',id:undefined,geometry:{type:'Point',coordinates:[lon,lat]},properties:{id,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):''}};
 }
-function refreshMarks(){const feats=staticFeats?staticFeats.slice():[],seen=new Set();for(const fs of cellCache.values())for(const f of fs){if(!seen.has(f.properties.id)){seen.add(f.properties.id);feats.push(f)}}
-  map.getSource('marks').setData({type:'FeatureCollection',features:feats})}
+// v19: merge duplicate marina/harbour points (same name or unnamed within 150 m; unnamed within 300 m of a named one)
+function dedupeHarbours(feats){const H=[],out=[];for(const f of feats)(f.properties.icon==='marina'||f.properties.icon==='harbour'?H:out).push(f);
+  const nm=f=>{const t=markById.get(f.properties.id)||{};return(t.name||t['seamark:name']||t['name:en']||'').trim().toLowerCase()};
+  const par=H.map((_,i)=>i),names=H.map(nm),find=i=>par[i]===i?i:(par[i]=find(par[i]));
+  const d=(a,b)=>{const[x1,y1]=a.geometry.coordinates,[x2,y2]=b.geometry.coordinates;return Math.hypot((x2-x1)*111320*Math.cos(y1*Math.PI/180),(y2-y1)*110540)};
+  const cn=H.map((_,i)=>names[i]);const idx=H.map((_,i)=>i).sort((a,b)=>H[a].geometry.coordinates[0]-H[b].geometry.coordinates[0]);
+  for(let a=0;a<idx.length;a++){const i=idx[a];for(let b=a+1;b<idx.length;b++){const j=idx[b];if((H[j].geometry.coordinates[0]-H[i].geometry.coordinates[0])*80000>300)break;
+    const ri=find(i),rj=find(j);if(ri===rj)continue;const ni=cn[ri],nj=cn[rj];if(ni&&nj&&ni!==nj)continue;
+    const lim=(ni===nj)?150:300;if(d(H[i],H[j])>lim)continue;par[rj]=ri;cn[ri]=ni||nj}}
+  const G=new Map();H.forEach((f,i)=>{const r=find(i);if(!G.has(r))G.set(r,[]);G.get(r).push(f)});let merged=0;
+  for(const g of G.values()){if(g.length===1){out.push(g[0]);continue}merged++;
+    const area=g.filter(f=>/^[wr]/.test(f.properties.id)),src=area.length?area:g;
+    const c=[src.reduce((s,f)=>s+f.geometry.coordinates[0],0)/src.length,src.reduce((s,f)=>s+f.geometry.coordinates[1],0)/src.length];
+    const best=g.slice().sort((a,b)=>(nm(b)?1:0)-(nm(a)?1:0)||(b.properties.icon==='marina')-(a.properties.icon==='marina')||a.properties.prio-b.properties.prio)[0];
+    out.push({type:'Feature',geometry:{type:'Point',coordinates:c},properties:Object.assign({},best.properties,{merged:g.length})})}
+  window.__harbourClusters=merged;return out}
+function refreshMarks(){let feats=staticFeats?staticFeats.slice():[];const seen=new Set();for(const fs of cellCache.values())for(const f of fs){if(!seen.has(f.properties.id)){seen.add(f.properties.id);feats.push(f)}}
+  feats=dedupeHarbours(feats);map.getSource('marks').setData({type:'FeatureCollection',features:feats})}
 // One Overpass request for the bounding box of all missing cells (was: one heavy regex query per cell, serially).
 async function fetchCells(keys){
   const ij=keys.map(k=>k.split('_').map(Number));const i0=Math.min(...ij.map(a=>a[0])),i1=Math.max(...ij.map(a=>a[0]))+1,j0=Math.min(...ij.map(a=>a[1])),j1=Math.max(...ij.map(a=>a[1]))+1;
   const bb=`(${(i0*CELL).toFixed(2)},${(j0*CELL).toFixed(2)},${(i1*CELL).toFixed(2)},${(j1*CELL).toFixed(2)})`;
-  const q=`[out:json][timeout:90];(nwr["seamark:type"]${bb};nwr["leisure"="marina"]${bb};nwr["waterway"="fuel"]${bb};);out center tags;`;
+  const q=`[out:json][timeout:90];(nwr["seamark:type"]${bb};nwr["leisure"="marina"]${bb};nwr["waterway"="fuel"]${bb};nwr["shop"~"^(boat|chandler|ship_chandler|marine)$"]${bb};);out center tags;`;
   let last;
   for(let a=0;a<OVERPASS.length;a++){const ep=OVERPASS[(epIdx+a)%OVERPASS.length];
     try{const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),95000);
