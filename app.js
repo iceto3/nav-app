@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v23';
+const APP_VERSION='v24';
 // v19: zoomed-out category dots, palette 3 "High-contrast white/ink" (fill, stroke) – satellite/modern and Old chart
 const DOT_COLS={sat:{anchorage:['#6a2c9e','#FFFFFF'],harb:['#0D47A1','#FFFFFF'],fuel:['#E65100','#FFFFFF'],shop:['#9E9E9E','#FFFFFF']},
   old:{anchorage:['#7a3b5a','#F3E9D2'],harb:['#22324F','#F3E9D2'],fuel:['#D2691E','#F3E9D2'],shop:['#9A9286','#F3E9D2']}};
@@ -560,12 +560,6 @@ function addDots(){const C={p_pharmacy:'#2e7d32',p_hospital:'#c62828',p_medical:
   for(const[k,c]of Object.entries(C))for(const[pf,st]of[['pdot_','#ffffff'],['opdot_','#F3E9D2']]){const r=2,n=12*r,cv=document.createElement('canvas');cv.width=cv.height=n;const x=cv.getContext('2d');
     x.beginPath();x.arc(n/2,n/2,n/2-1.6*r,0,7);x.fillStyle=c;x.fill();x.lineWidth=1.4*r;x.strokeStyle=st;x.stroke();
     const d=x.getImageData(0,0,n,n);if(!map.hasImage(pf+k))map.addImage(pf+k,{width:n,height:n,data:new Uint8Array(d.data.buffer)},{pixelRatio:r})}}
-// v23: rotation guard - when north-up, ignore twists < 22 deg; snap back to north within 7 deg
-(function(){let acc=0,locked=false,busy=false;const nb=b=>((b+540)%360)-180;
-  map.on('rotatestart',e=>{if(!e.originalEvent)return;acc=0;locked=Math.abs(nb(map.getBearing()))<0.5});
-  map.on('rotate',e=>{if(busy||!e.originalEvent||!locked)return;acc+=nb(map.getBearing());busy=true;
-    if(Math.abs(acc)<22)map.setBearing(0);else{locked=false;map.setBearing(acc)}busy=false});
-  map.on('rotateend',e=>{locked=false;const b=nb(map.getBearing());if(b!==0&&Math.abs(b)<7)map.easeTo({bearing:0,duration:250})});})();
 // v23: range rings (NM) around own position
 function ringStep(halfNm){const S=[0.05,0.1,0.25,0.5,1,2,5,10,20,50];for(const s of S)if(halfNm/s<=5.5)return s;return 100}
 function updateRings(){if(!me||!map.getSource('meRings'))return;const c=map.getCanvas(),half=Math.min(c.clientWidth,c.clientHeight)/2;
