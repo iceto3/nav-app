@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v16';
+const APP_VERSION='v17';
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -63,7 +63,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'osmSea',type:'raster',source:'osmSea',layout:{visibility:'none'}},
     {id:'routeCasing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],10,6,18,14],'line-opacity':.9}},
     {id:'route',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,4,18,10]}},
-    {id:'marks',type:'symbol',source:'marks',minzoom:11,layout:{'icon-image':['concat','D_',['get','icon']],'icon-offset':['step',['zoom'],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],14,['case',['>=',['coalesce',['get','oz'],0],14],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],15,['case',['>=',['coalesce',['get','oz'],0],15],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],16,['case',['>=',['coalesce',['get','oz'],0],16],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],17,['case',['>=',['coalesce',['get','oz'],0],17],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],18,['case',['>=',['coalesce',['get','oz'],0],18],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]]],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
+    {id:'marks',type:'symbol',source:'marks',minzoom:11,layout:{'icon-image':['concat','D_',['get','icon']],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
       'symbol-sort-key':['get','prio'],
       'icon-size':['interpolate',['linear'],['zoom'],11,['match',['get','icon'],'light_major',.7,.5],14,['match',['get','icon'],'light_major',.95,.75],17,1.05]}},
     {id:'ltLbl',type:'symbol',source:'marks',minzoom:11,filter:['!=',['coalesce',['get','lt'],''],''],layout:{'text-field':['get','lt'],'text-font':FONT_I,
@@ -121,6 +121,12 @@ function setOldTheme(on){
   const r=d.querySelector('.rose');map.on('rotate',()=>r.style.transform=`rotate(${-map.getBearing()}deg)`);})();
 function nfnNote(on){let n=document.getElementById('nfn');if(!n){n=document.createElement('div');n.id='nfn';n.textContent='Depths ≈115 m grid · Not for navigation';
   n.style.cssText='position:fixed;right:8px;bottom:calc(env(safe-area-inset-bottom) + 30px);z-index:2400;background:rgba(255,255,255,.8);color:#7a1f1f;font:600 10px system-ui,sans-serif;padding:2px 6px;border-radius:6px;pointer-events:none';document.body.appendChild(n)}n.hidden=!on}
+// ---------- zoom indicator + compact vertical slider ----------
+{const z=document.createElement('div');z.id='zoomBox';z.style.cssText='position:fixed;right:12px;top:calc(env(safe-area-inset-top) + 172px);z-index:2400;display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(255,255,255,.85);border-radius:8px;padding:4px 3px;box-shadow:0 1px 4px rgba(0,0,0,.25);font:600 10px system-ui,sans-serif;color:#333';
+ z.innerHTML='<span id="zoomTxt"></span><input id="zoomSl" type="range" min="2" max="20" step="0.1" aria-label="Zoom" style="writing-mode:vertical-lr;direction:rtl;width:18px;height:110px;margin:0">';
+ document.body.appendChild(z);const t=z.querySelector('#zoomTxt'),sl=z.querySelector('#zoomSl');
+ const upd=()=>{const v=map.getZoom();t.textContent='Z '+v.toFixed(1);if(document.activeElement!==sl)sl.value=v};
+ sl.oninput=()=>map.jumpTo({zoom:+sl.value});map.on('zoom',upd);upd()}
 // ---------- layer switcher ----------
 (function(){
   const box=document.createElement('div');box.id='layers';
