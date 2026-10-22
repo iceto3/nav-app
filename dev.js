@@ -17,9 +17,15 @@ const css=`#dev{position:fixed;left:6px;right:6px;bottom:calc(env(safe-area-inse
 #dev button.on{background:#e65100}#dev button.x{background:#7a2020}#dev .sub:empty,#dev .list:empty{display:none}
 #dev .list{max-height:34vh;overflow:auto;flex-direction:column;flex-wrap:nowrap}#dev .list div{display:flex;justify-content:space-between;align-items:center;gap:6px}
 #dev input[type=range]{padding:0;min-height:0;width:110px}#dev .tag{position:absolute;top:-22px;left:4px;background:#e65100;color:#fff;border-radius:6px;padding:1px 6px;font-size:11px}
+body.dev-edit #map,body.dev-edit #map *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+body.dev-on #fabs{bottom:calc(env(safe-area-inset-bottom) + 24px + var(--devh,0px))}body.dev-on.has-panel #fabs{bottom:calc(env(safe-area-inset-bottom) + 190px + var(--devh,0px))}
+body.dev-on #panel{bottom:var(--devh,0px)}body.dev-on .maplibregl-ctrl-bottom-left,body.dev-on .maplibregl-ctrl-bottom-right{bottom:var(--devh,0px)}body.dev-on #oldDecor .rose{bottom:calc(env(safe-area-inset-bottom) + 64px + var(--devh,0px))}
 #devCap{position:absolute;inset:0;z-index:5;touch-action:none;display:none}`;
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
-const root=document.createElement('div');root.id='dev';root.innerHTML='<span class="tag">DEV</span><div class="list"></div><div class="sub"></div><div class="bar"></div>';document.body.appendChild(root);
+const root=document.createElement('div');root.id='dev';root.innerHTML='<span class="tag">DEV</span><div class="list"></div><div class="sub"></div><div class="bar"></div>';document.body.appendChild(root);document.body.classList.add('dev-on');
+const setH=()=>document.documentElement.style.setProperty('--devh',(root.offsetHeight+10)+'px');new ResizeObserver(setH).observe(root);setH();
+document.addEventListener('contextmenu',e=>{if(window.__devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
+window.addEventListener('selectstart',e=>{if(window.__devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
 const MODES=[['view','View'],['shore','Shore'],['depth','Depth'],['move','Move'],['image','Image']];
 function bar(){const b=root.querySelector('.bar');b.innerHTML='';
   for(const[m,l]of MODES)btn(b,l,()=>setMode(m),mode===m);
@@ -53,7 +59,7 @@ function list(){const l=root.querySelector('.list');l.innerHTML='';if(!listOpen)
   for(const id in S.moves)row(`Moved ${id}`,()=>{const p=snap();delete S.moves[id];commit(p);refreshMarksSafe();list()});
   if(S.overlay)row('Image overlay',()=>{const p=snap();S.overlay=null;idb('del');ovRemove();commit(p);list()});
   if(!l.children.length){const d=document.createElement('div');d.textContent='No edits yet';d.style.padding='6px';l.appendChild(d)}}
-function setMode(m){mode=m;active=null;selV=null;capture();bar();sub();render()}
+function setMode(m){mode=m;window.__devEdit=m!=='view';document.body.classList.toggle('dev-edit',m!=='view');document.querySelectorAll('.maplibregl-popup').forEach(x=>x.remove());active=null;selV=null;capture();bar();sub();render()}
 function exit(){localStorage.removeItem('navDev');location.href=location.pathname+'?dev=0'}
 function doUndo(){if(!undo.length)return;redo.push(snap());S=JSON.parse(undo.pop());after()}
 function doRedo(){if(!redo.length)return;undo.push(snap());S=JSON.parse(redo.pop());after()}

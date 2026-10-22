@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v25';
+const APP_VERSION='v26';
 // v19: zoomed-out category dots, palette 3 "High-contrast white/ink" (fill, stroke) – satellite/modern and Old chart
 const DOT_COLS={sat:{anchorage:['#6a2c9e','#FFFFFF'],harb:['#0D47A1','#FFFFFF'],fuel:['#E65100','#FFFFFF'],shop:['#9E9E9E','#FFFFFF']},
   old:{anchorage:['#7a3b5a','#F3E9D2'],harb:['#22324F','#F3E9D2'],fuel:['#D2691E','#F3E9D2'],shop:['#9A9286','#F3E9D2']}};
@@ -246,10 +246,10 @@ $('#q').addEventListener('focus',()=>{if($('#results').children.length)$('#resul
 map.on('click',()=>$('#results').hidden=true);
 
 // ---------- destination (right-click / long-press) ----------
-map.on('contextmenu',e=>setDest([e.lngLat.lat,e.lngLat.lng],'Dropped pin'));
+map.on('contextmenu',e=>{if(window.__devEdit)return;setDest([e.lngLat.lat,e.lngLat.lng],'Dropped pin')});
 (function longPress(){let t=null,start=null;const cancel=()=>{clearTimeout(t);t=null};
-  map.on('touchstart',e=>{if(e.originalEvent.touches.length!==1)return cancel();start=e.point;const ll=e.lngLat;
-    t=setTimeout(()=>{t=null;if(navigator.vibrate)navigator.vibrate(30);setDest([ll.lat,ll.lng],'Dropped pin')},600)});
+  map.on('touchstart',e=>{if(window.__devEdit||e.originalEvent.touches.length!==1)return cancel();start=e.point;const ll=e.lngLat;
+    t=setTimeout(()=>{t=null;if(window.__devEdit)return;if(navigator.vibrate)navigator.vibrate(30);setDest([ll.lat,ll.lng],'Dropped pin')},600)});
   map.on('touchmove',e=>{if(t&&start&&(Math.abs(e.point.x-start.x)>10||Math.abs(e.point.y-start.y)>10))cancel()});
   map.on('touchend',cancel);map.on('touchcancel',cancel);map.on('movestart',e=>{if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)cancel()});
 })();
@@ -741,7 +741,7 @@ function countVisible(){try{return map.queryRenderedFeatures({layers:['marks']})
 function scheduleMarks(ms=700){clearTimeout(markTimer);markTimer=setTimeout(loadMarks,ms)}
 map.on('moveend',scheduleMarks);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-for(const __l of['marks','pois'])map.on('click',__l,e=>{const f=e.features[0];const t=markById.get(f.properties.id)||{};
+for(const __l of['marks','pois'])map.on('click',__l,e=>{if(window.__devEdit)return;const f=e.features[0];const t=markById.get(f.properties.id)||{};
   const name=t['name:en']||t['seamark:name:en']||t.name_en||t['name:latin']||t['int_name']||t.name||t['seamark:name']||'';const lt=lightText(t);
   const st=t['seamark:type'];const cat=st&&t[`seamark:${st}:category`];
   let h=`<div class="mk">${name?`<b>${esc(name)}</b>`:''}<div>${esc(f.properties.kind)}${cat&&CAT_BG[cat]?' – '+CAT_BG[cat]:''}</div>`;
