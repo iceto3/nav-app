@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v32';
+const APP_VERSION='v33';
 // v19: zoomed-out category dots, palette 3 "High-contrast white/ink" (fill, stroke) – satellite/modern and Old chart
 const DOT_COLS={sat:{anchorage:['#6a2c9e','#FFFFFF'],harb:['#0D47A1','#FFFFFF'],fuel:['#E65100','#FFFFFF'],shop:['#9E9E9E','#FFFFFF']},
   old:{anchorage:['#7a3b5a','#F3E9D2'],harb:['#22324F','#F3E9D2'],fuel:['#D2691E','#F3E9D2'],shop:['#9A9286','#F3E9D2']}};
@@ -18,7 +18,7 @@ const EMOD_ATT='Bathymetry © <a href="https://emodnet.ec.europa.eu/en/bathymetr
 // own vector depth contours (EMODnet DTM 2024, CC-BY 4.0) served as PMTiles via HTTP range requests
 const PMT=new pmtiles.Protocol();maplibregl.addProtocol('pmtiles',PMT.tile);
 const DEPTH_ATT='Bathymetry: <a href="https://emodnet.ec.europa.eu/en/bathymetry">EMODnet</a> (CC-BY 4.0)';
-const pmUrl=f=>'pmtiles://'+new URL('data/'+f+'?v=32',location.href).href;
+const pmUrl=f=>'pmtiles://'+new URL('data/'+f+'?v=33',document.baseURI).href;
 const wms=l=>[`${EMOD}?service=WMS&request=GetMap&version=1.1.1&layers=${l}&styles=&format=image/png&transparent=true&srs=EPSG:3857&width=256&height=256&bbox={bbox-epsg-3857}`];
 const raster=(tiles,att,extra={})=>Object.assign({type:'raster',tiles,tileSize:256,attribution:att},extra);
 const FONT_R=['Noto Sans Regular'],FONT_B=['Noto Sans Bold'],FONT_I=['Noto Sans Italic'];
@@ -27,7 +27,7 @@ const NAME_EN=['coalesce',['get','name:en'],['get','name_en'],['get','name:latin
 const OLD_INK='#6b4a2b',FONT_OLD=['Libre Caslon Italic'];
 const HALO={'text-halo-color':'rgba(0,0,0,.75)','text-halo-width':1.6,'text-halo-blur':.4};
 // v29: shore/pier/breakwater/land edits render on Old chart only; depth contours on all bases
-// v28: ONE style for user edits, used by the bundled data (prefix u, source uedits) and live dev drawing (prefix dv, source dev)
+// v28: ONE style for user edits (bundled data: prefix u, source uedits)
 const UE_M=m=>['interpolate',['exponential',2],['zoom'],0,m/61014,22,m/61014*4194304];
 const UE_SHORE=['==',['get','edit'],'shore'],UE_LINE=['==',['geometry-type'],'LineString'],UE_POLY=['==',['geometry-type'],'Polygon'];
 // v32: user shore edits behave like the map's own coastline: polygons (snapped/closed land, ~7 m pier buffers) filled like land,
@@ -56,7 +56,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     depth:raster(wms('emodnet:mean_multicolour'),EMOD_ATT),
     contours:raster(wms('emodnet:contours'),EMOD_ATT),
     dcont:{type:'vector',url:pmUrl('contours.pmtiles'),attribution:DEPTH_ATT},
-    uedits:{type:'geojson',data:'data/user-edits.geojson?v=32'},
+    uedits:{type:'geojson',data:'data/user-edits.geojson?v=33'},
     dbands:{type:'vector',url:pmUrl('bands.pmtiles'),attribution:DEPTH_ATT},
     coast:{type:'vector',url:pmUrl('coast.pmtiles'),attribution:OSM_ATT},
     osmSea:raster(['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],'Seamarks © <a href="https://www.openseamap.org">OpenSeaMap</a>',{maxzoom:18}),
@@ -136,7 +136,7 @@ const map=new maplibregl.Map({container:'map',style,
   attributionControl:false,maxTileCacheSize:400,
   transformRequest:u=>{const m=/\/fonts\/(Libre%20Caslon%20Italic|Libre Caslon Italic)\/(\d+)-(\d+)\.pbf/.exec(u);if(!m)return{url:u};
     // local Libre Caslon Italic (lining figures) covers Latin (0-767); Greek, Cyrillic etc. fall back to OpenFreeMap Noto Sans Italic
-    return +m[2]<768?{url:new URL('glyphs/Libre%20Caslon%20Italic/'+m[2]+'-'+m[3]+'.pbf?v=16',location.href).href}:{url:'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/'+m[2]+'-'+m[3]+'.pbf'}},refreshExpiredTiles:false});
+    return +m[2]<768?{url:new URL('glyphs/Libre%20Caslon%20Italic/'+m[2]+'-'+m[3]+'.pbf?v=16',document.baseURI).href}:{url:'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/'+m[2]+'-'+m[3]+'.pbf'}},refreshExpiredTiles:false});
 map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-left');
 map.addControl(new maplibregl.NavigationControl({showZoom:false,visualizePitch:false}),'top-right'); // compass: tap to reset north
 map.touchZoomRotate.enableRotation();
@@ -164,7 +164,7 @@ function setOldTheme(on){
   map.setLayoutProperty('dcontLbl','text-font',on?FONT_OLD:FONT_I);
   map.setPaintProperty('dcontLbl','text-color',on?'#2f5652':'#e6fbff');
   map.setPaintProperty('dcontLbl','text-halo-color',on?'#b9cfc9':'rgba(0,40,60,.8)');
-  OLD_ON=on;ueTheme('u');ueTheme('dv');window.dispatchEvent(new Event('navtheme'));
+  OLD_ON=on;ueTheme('u');
 }
 (function(){const d=document.createElement('div');d.id='oldDecor';d.innerHTML=`<svg class="paper" width="100%" height="100%"><filter id="opn"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="4"/><feColorMatrix values="0 0 0 0 .45 0 0 0 0 .33 0 0 0 0 .18 0 0 0 .55 0"/></filter><filter id="opb"><feTurbulence type="fractalNoise" baseFrequency=".012" numOctaves="2" seed="9"/><feColorMatrix values="0 0 0 0 .5 0 0 0 0 .35 0 0 0 0 .15 0 0 0 .5 -.1"/></filter><rect width="100%" height="100%" filter="url(#opn)"/><rect width="100%" height="100%" filter="url(#opb)"/></svg><div class="vig"></div>
 <svg class="rose" viewBox="-110 -115 220 225" fill="none" stroke="#5a3d1e"><circle r="92" stroke-width="1.2"/><circle r="86" stroke-width=".6"/><circle r="60" stroke-width=".5" stroke-dasharray="2 3"/><g stroke-width=".4" opacity=".6"><path d="M0-86V86M-86 0H86M-61-61L61 61M61-61L-61 61"/></g><g stroke-width=".8"><path d="M0-50L9-9 50 0 9 9 0 50-9 9-50 0-9-9Z" fill="#e9dcc0" transform="rotate(45) scale(.7)"/><path d="M0-80L12-12 80 0 12 12 0 80-12 12-80 0-12-12Z" fill="#efe4cb"/><path d="M0-80L12-12 0 0ZM80 0L12 12 0 0ZM0 80L-12 12 0 0ZM-80 0L-12-12 0 0Z" fill="#7a5530"/></g><circle r="4" fill="#9b3b26" stroke="none"/><path d="M-6-90L0-100 6-90" fill="#9b3b26" stroke="none"/><text y="-102" fill="#5a3d1e" stroke="none" font-family="Georgia,serif" font-style="italic" font-size="16" text-anchor="middle">N</text></svg>`;
@@ -272,10 +272,10 @@ $('#q').addEventListener('focus',()=>{if($('#results').children.length)$('#resul
 map.on('click',()=>$('#results').hidden=true);
 
 // ---------- destination (right-click / long-press) ----------
-map.on('contextmenu',e=>{if(window.__devEdit)return;setDest([e.lngLat.lat,e.lngLat.lng],'Dropped pin')});
+map.on('contextmenu',e=>{setDest([e.lngLat.lat,e.lngLat.lng],'Dropped pin')});
 (function longPress(){let t=null,start=null;const cancel=()=>{clearTimeout(t);t=null};
-  map.on('touchstart',e=>{if(window.__devEdit||e.originalEvent.touches.length!==1)return cancel();start=e.point;const ll=e.lngLat;
-    t=setTimeout(()=>{t=null;if(window.__devEdit)return;if(navigator.vibrate)navigator.vibrate(30);setDest([ll.lat,ll.lng],'Dropped pin')},600)});
+  map.on('touchstart',e=>{if(e.originalEvent.touches.length!==1)return cancel();start=e.point;const ll=e.lngLat;
+    t=setTimeout(()=>{t=null;if(navigator.vibrate)navigator.vibrate(30);setDest([ll.lat,ll.lng],'Dropped pin')},600)});
   map.on('touchmove',e=>{if(t&&start&&(Math.abs(e.point.x-start.x)>10||Math.abs(e.point.y-start.y)>10))cancel()});
   map.on('touchend',cancel);map.on('touchcancel',cancel);map.on('movestart',e=>{if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)cancel()});
 })();
@@ -724,12 +724,12 @@ async function fetchCells(keys){
 // ---------- static Greek dataset (bundled, cached by SW); live Overpass only outside Greece ----------
 const GR_BB=[19.3,34.5,29.7,41.8];let staticFeats=null,staticState='idle';
 const inGreece=b=>b.getEast()>GR_BB[0]&&b.getWest()<GR_BB[2]&&b.getNorth()>GR_BB[1]&&b.getSouth()<GR_BB[3];
-async function loadPoi(){try{const r=await fetch('data/poi-gr.geojson?v=32',{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
+async function loadPoi(){try{const r=await fetch('data/poi-gr.geojson?v=33',{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
   for(const f of d.features){const t=f.properties,c=classify(t);if(!c)continue;markById.set(t.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:t.id,od:-1,oz:0,icon:c[0],kind:c[1],prio:-c[2],lt:''}})}
   refreshMarks()}catch(e){console.warn('poi data',e)}}
 async function loadStatic(){if(staticState!=='idle')return;staticState='loading';setStatus('Loading seamarks…');
   let lastErr='';
-  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=32',{credentials:'same-origin',cache:'no-cache'});
+  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=33',{credentials:'same-origin',cache:'no-cache'});
       if(r.redirected&&!new URL(r.url).pathname.endsWith('.geojson'))throw new Error('redirected to '+new URL(r.url).host+new URL(r.url).pathname);
       if(!r.ok)throw new Error('HTTP '+r.status+(r.status===401||r.status===403?' (site login/access)':''));
       const txt=await r.text();let d;try{d=JSON.parse(txt)}catch(_){throw new Error('bad data ('+(r.headers.get('content-type')||'?')+'): '+txt.slice(0,40))}
@@ -768,7 +768,7 @@ function countVisible(){try{return map.queryRenderedFeatures({layers:['marks']})
 function scheduleMarks(ms=700){clearTimeout(markTimer);markTimer=setTimeout(loadMarks,ms)}
 map.on('moveend',scheduleMarks);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-for(const __l of['marks','pois'])map.on('click',__l,e=>{if(window.__devEdit)return;const f=e.features[0];const t=markById.get(f.properties.id)||{};
+for(const __l of['marks','pois'])map.on('click',__l,e=>{const f=e.features[0];const t=markById.get(f.properties.id)||{};
   const name=t['name:en']||t['seamark:name:en']||t.name_en||t['name:latin']||t['int_name']||t.name||t['seamark:name']||'';const lt=lightText(t);
   const st=t['seamark:type'];const cat=st&&t[`seamark:${st}:category`];
   let h=`<div class="mk">${name?`<b>${esc(name)}</b>`:''}<div>${esc(f.properties.kind)}${cat&&CAT_BG[cat]?' – '+CAT_BG[cat]:''}</div>`;
@@ -803,8 +803,8 @@ if(window.caches)caches.keys().then(k=>Promise.all(k.map(x=>caches.delete(x)))).
   setTimeout(check,3000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check()});
   window.addEventListener('pageshow',e=>{if(e.persisted)check()});})();
 
-// v28: bundled user edits – ids for dev auto-hide; moved ids pinned (EMODnet/OSM under user edits is cut in the pmtiles by devedits/apply.py)
-(function(){const go=()=>fetch('data/user-edits.geojson?v=32').then(r=>r.json()).then(d=>{window.UE_DATA=d;window.BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'||f.properties.edit==='delete'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'));
+// v28: bundled user edits – deleted ids hidden, moved ids pinned (EMODnet/OSM under user edits is cut in the pmtiles by devedits/apply.py)
+(function(){const go=()=>fetch('data/user-edits.geojson?v=33').then(r=>r.json()).then(d=>{
   window.DELETED_IDS=new Set(d.features.filter(f=>f.properties.edit==='delete').map(f=>f.properties.target));
   window.PINNED_IDS=new Set(d.features.filter(f=>f.properties.edit==='move').map(f=>f.properties.target));try{refreshMarks()}catch(e){}}).catch(e=>console.warn('user-edits',e));
   if(map.isStyleLoaded())go();else map.once('load',go)})();

@@ -1,8 +1,17 @@
-// v25: hidden developer mode (?dev=1). Device-local edits: shore/pier/breakwater lines, depth contours, symbol moves, image overlay.
+// editor glue (loaded AFTER ../app.js; the app itself carries no editor code)
+window.EDITOR_VERSION='editor v1';document.title='Navigator – editor v1';
+// suppress the app's "Dropped pin" (right-click / long-press) while an edit mode is active
+(function(){const o=window.setDest;window.setDest=function(ll,name){if(window.__devEdit&&name==='Dropped pin')return;return o.apply(this,arguments)}})();
+// re-theme the live dev layers + notify the editor when the app switches Old chart on/off
+(function(){const o=window.setOldTheme;window.setOldTheme=function(on){const r=o.apply(this,arguments);try{ueTheme('dv')}catch(e){}window.dispatchEvent(new Event('navtheme'));return r}})();
+// bundled user edits (for auto-hiding already-merged local edits and the live coast cut)
+(function(){const go=()=>fetch('data/user-edits.geojson?v='+String(APP_VERSION).replace(/\D/g,'')).then(r=>r.json()).then(d=>{window.UE_DATA=d;
+  window.BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'||f.properties.edit==='delete'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'))}).catch(e=>console.warn('user-edits',e));
+  if(map.isStyleLoaded())go();else map.once('load',go)})();
+// editor v1 (was v25-v32 hidden ?dev=1 mode of the app; now a separate page at /editor/, loading ../app.js for identical rendering). Device-local edits: shore/pier/breakwater lines, depth contours, symbol moves, image overlay.
 (function(){
 const qs=new URLSearchParams(location.search);
-if(qs.get('dev')==='1')localStorage.setItem('navDev','1');if(qs.get('dev')==='0')localStorage.removeItem('navDev');
-if(localStorage.getItem('navDev')!=='1')return;
+window.__edShim=false;
 const KEY='navDevState',$=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
 let S=JSON.parse(localStorage.getItem(KEY)||'null')||{lines:[],moves:{},overlay:null};S.dels=S.dels||{};S.adds=S.adds||{};
 let vT=0,selBefore=null,snapPrev=null,picked=false,lastDrag=0,undo=[],redo=[],mode='view',active=null,selV=null,shoreType='natural',depthVal=1,drag=null;
@@ -44,7 +53,7 @@ window.addEventListener('selectstart',e=>{if(window.__devEdit&&e.target.closest&
 const MODES=[['view','View'],['shore','Shore'],['depth','Depth'],['move','Move'],['add','Add'],['del','Delete'],['image','Image']];
 function bar(){const b=root.querySelector('.bar');b.innerHTML='';
   for(const[m,l]of MODES)btn(b,l,()=>setMode(m),mode===m);
-  btn(b,'↶',doUndo);btn(b,'↷',doRedo);btn(b,'☰',()=>{listOpen=!listOpen;list()},listOpen);btn(b,'⇩',exportAll);btn(b,'⇧',importAll);btn(b,'✕',exit,false,'x')}
+  btn(b,'↶',doUndo);btn(b,'↷',doRedo);btn(b,'☰',()=>{listOpen=!listOpen;list()},listOpen);btn(b,'⇩',exportAll);btn(b,'⇧',importAll);btn(b,'✕',exit,false,'x').title='editor v1 – exit to app'}
 let listOpen=false;
 function btn(p,l,f,on,cls){const e=document.createElement('button');e.textContent=l;if(on)e.className='on';if(cls)e.classList.add(cls);e.onclick=ev=>{ev.stopPropagation();f()};p.appendChild(e);return e}
 function sub(){const s=root.querySelector('.sub');s.innerHTML='';
@@ -83,7 +92,7 @@ function list(){const l=root.querySelector('.list');l.innerHTML='';if(!listOpen)
   if(S.overlay)row('Image overlay',()=>{const p=snap();S.overlay=null;idb('del');ovRemove();commit(p);list()});
   if(!l.children.length){const d=document.createElement('div');d.textContent='No edits yet';d.style.padding='6px';l.appendChild(d)}}
 function setMode(m){closeForm();mode=m;window.__devEdit=m!=='view';document.body.classList.toggle('dev-edit',m!=='view');document.querySelectorAll('.maplibregl-popup').forEach(x=>x.remove());active=null;selV=null;capture();bar();sub();render()}
-function exit(){localStorage.removeItem('navDev');location.href=location.pathname+'?dev=0'}
+function exit(){location.href=new URL('./',document.baseURI).href}
 const norm=()=>{S.dels=S.dels||{};S.adds=S.adds||{}};
 function doUndo(){if(!undo.length)return;redo.push(snap());S=JSON.parse(undo.pop());norm();after()}
 function doRedo(){if(!redo.length)return;undo.push(snap());S=JSON.parse(redo.pop());norm();after()}
