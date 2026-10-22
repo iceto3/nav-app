@@ -1,9 +1,9 @@
 'use strict';
-const APP_VERSION='v21';
+const APP_VERSION='v22';
 // v19: zoomed-out category dots, palette 3 "High-contrast white/ink" (fill, stroke) – satellite/modern and Old chart
 const DOT_COLS={sat:{anchorage:['#6a2c9e','#FFFFFF'],harb:['#0D47A1','#FFFFFF'],fuel:['#E65100','#FFFFFF'],shop:['#9E9E9E','#FFFFFF']},
   old:{anchorage:['#7a3b5a','#F3E9D2'],harb:['#22324F','#F3E9D2'],fuel:['#D2691E','#F3E9D2'],shop:['#9A9286','#F3E9D2']}};
-function DOTPAL(old,i){const p=DOT_COLS[old?'old':'sat'];return['match',['get','icon'],'anchorage',p.anchorage[i],['marina','harbour'],p.harb[i],'fuel',p.fuel[i],p.shop[i]]}
+function DOTPAL(old,i){const p=DOT_COLS[old?'old':'sat'];return['match',['get','icon'],'anchorage',p.anchorage[i],['marina','harbour'],p.harb[i],'fuel',p.fuel[i],['p_hospital','p_medical'],i?p.shop[1]:'#c62828','p_pharmacy',i?p.shop[1]:'#2e7d32',['p_rest','p_fishrest','p_steak'],i?p.shop[1]:'#1f6f68',p.shop[i]]}
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -67,10 +67,15 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'osmSea',type:'raster',source:'osmSea',layout:{visibility:'none'}},
     {id:'routeCasing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],10,6,18,14],'line-opacity':.9}},
     {id:'route',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,4,18,10]}},
-    {id:'dots',type:'circle',source:'marks',minzoom:5,filter:['any',['all',['in',['get','icon'],['literal',['anchorage','marina','harbour','fuel']]],['<',['zoom'],11.2]],['all',['==',['get','icon'],'shop'],['any',['<',['zoom'],14],['!',['has','hasIcon']]]]],layout:{'circle-sort-key':['match',['get','icon'],'shop',0,'fuel',1,2]},paint:{'circle-color':DOTPAL(false,0),'circle-stroke-color':DOTPAL(false,1),'circle-radius':['interpolate',['linear'],['zoom'],8,['match',['get','icon'],'anchorage',4.5,'fuel',3.5,'shop',2.6,5],11,['match',['get','icon'],'anchorage',6,'fuel',4.5,'shop',3.2,6.5]],'circle-stroke-width':['match',['get','icon'],'fuel',1.5,'shop',1,2],'circle-opacity':['match',['get','icon'],'shop',.85,1]}},
+    {id:'dots',type:'circle',source:'marks',minzoom:5,filter:['any',['all',['in',['get','icon'],['literal',['anchorage','marina','harbour','fuel']]],['<',['zoom'],11.2]],['all',['==',['get','icon'],'shop'],['<',['zoom'],14]],['all',['in',['get','icon'],['literal',["p_grocery", "p_hardware", "p_gshop", "p_pharmacy", "p_rest", "p_fishrest", "p_steak", "p_service", "p_hospital", "p_medical"]]],['>=',['zoom'],12],['<',['zoom'],14]]],layout:{'circle-sort-key':['match',['get','icon'],'shop',0,'fuel',1,2]},paint:{'circle-color':DOTPAL(false,0),'circle-stroke-color':DOTPAL(false,1),'circle-radius':['interpolate',['linear'],['zoom'],8,['match',['get','icon'],'anchorage',4.5,'fuel',3.5,'shop',2.6,5],11,['match',['get','icon'],'anchorage',6,'fuel',4.5,'shop',3.2,6.5]],'circle-stroke-width':['match',['get','icon'],'fuel',1.5,'shop',1,2],'circle-opacity':['match',['get','icon'],'shop',.85,1]}},
     {id:'marks',type:'symbol',source:'marks',minzoom:11,
-      filter:['case',['in',['get','icon'],['literal',['anchorage','marina','harbour','fuel']]],['>=',['zoom'],11.2],['==',['get','icon'],'shop'],['>=',['zoom'],14],['>=',['zoom'],13]],
-      paint:{'icon-opacity':['interpolate',['linear'],['zoom'],13,['match',['get','icon'],['anchorage','marina','harbour','fuel','shop'],1,.7],14,1]},layout:{'icon-image':['concat','D_',['get','icon']],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
+      filter:['all',['!',['in',['get','icon'],['literal',["shop", "p_grocery", "p_hardware", "p_gshop", "p_pharmacy", "p_rest", "p_fishrest", "p_steak", "p_service", "p_hospital", "p_medical"]]]],['case',['in',['get','icon'],['literal',['anchorage','marina','harbour','fuel']]],['>=',['zoom'],11.2],['in',['get','icon'],['literal',["shop", "p_grocery", "p_hardware", "p_gshop", "p_pharmacy", "p_rest", "p_fishrest", "p_steak", "p_service", "p_hospital", "p_medical"]]],['>=',['zoom'],14],['>=',['zoom'],13]]],
+      paint:{'icon-opacity':['interpolate',['linear'],['zoom'],13,['match',['get','icon'],['anchorage','marina','harbour','fuel','shop'],1,.7],14,1]},layout:{'icon-image':['concat','D_',['get','icon'],['coalesce',['get','ls'],'']],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
+      'symbol-sort-key':['get','prio'],
+      'icon-size':['interpolate',['linear'],['zoom'],11,['match',['get','icon'],'light_major',.7,['harbour','marina','anchorage'],.675,.5],14,['match',['get','icon'],'light_major',.95,['harbour','marina','anchorage'],1.0125,.75],17,['match',['get','icon'],['harbour','marina','anchorage'],1.4175,1.05]]} /* v21: harbour/marina/anchorage x1.35 */},
+    {id:'pois',type:'symbol',source:'marks',minzoom:11,
+      filter:['all',['in',['get','icon'],['literal',["shop", "p_grocery", "p_hardware", "p_gshop", "p_pharmacy", "p_rest", "p_fishrest", "p_steak", "p_service", "p_hospital", "p_medical"]]],['>=',['zoom'],14]],
+      paint:{'icon-opacity':['interpolate',['linear'],['zoom'],13,['match',['get','icon'],['anchorage','marina','harbour','fuel','shop'],1,.7],14,1]},layout:{'icon-image':['concat','D_',['get','icon'],['coalesce',['get','ls'],'']],'icon-allow-overlap':false,'icon-ignore-placement':false,'icon-padding':1,'icon-anchor':'center',
       'symbol-sort-key':['get','prio'],
       'icon-size':['interpolate',['linear'],['zoom'],11,['match',['get','icon'],'light_major',.7,['harbour','marina','anchorage'],.675,.5],14,['match',['get','icon'],'light_major',.95,['harbour','marina','anchorage'],1.0125,.75],17,['match',['get','icon'],['harbour','marina','anchorage'],1.4175,1.05]]} /* v21: harbour/marina/anchorage x1.35 */},
     {id:'ltLbl',type:'symbol',source:'marks',minzoom:13,filter:['!=',['coalesce',['get','lt'],''],''],layout:{'text-field':['get','lt'],'text-font':FONT_I,
@@ -86,7 +91,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
   ]};
 const BASES={sat:{label:'Satellite (Esri)',layers:['sat']},topo:{label:'Topo map (Esri)',layers:['topo']},osm:{label:'OpenStreetMap (streets)',layers:['osm']},old:{label:'Old chart',layers:['old_bg','old_land','old_water','old_rip0','old_rip1','old_rip2','old_coast','old_bld','old_roads','old_ferry']}};
 const INIT_BASE=BASES[qs.get('base')]?qs.get('base'):'sat';
-const OVERLAYS={marks:{label:'Seamarks',on:true,layers:['marks','ltLbl']},labels:{label:'Place & water labels',on:true,layers:['lblWater','lblIsland','lblPlace']},depth:{label:'Depth (EMODnet)'},contours:{label:'Contours (EMODnet WMS)'},dcont:{label:'Depth contours',layers:['dband','dcont','dcontS','dcontLbl']},osmSea:{label:'OpenSeaMap (legacy raster)'}};
+const OVERLAYS={marks:{label:'Seamarks',on:true,layers:['marks','pois','ltLbl']},labels:{label:'Place & water labels',on:true,layers:['lblWater','lblIsland','lblPlace']},depth:{label:'Depth (EMODnet)'},contours:{label:'Contours (EMODnet WMS)'},dcont:{label:'Depth contours',layers:['dband','dcont','dcontS','dcontLbl']},osmSea:{label:'OpenSeaMap (legacy raster)'}};
 
 const map=new maplibregl.Map({container:'map',style,
   center:[+(qs.get('lon')||20.71),+(qs.get('lat')||38.83)],zoom:+(qs.get('z')||12), // TEMP v21: default start Lefkada (was 23.3219,42.6977 z13)
@@ -112,7 +117,7 @@ function setOldTheme(on){
     map.setPaintProperty(id,'text-halo-width',on?1.5:o.hw);map.setPaintProperty(id,'text-halo-blur',on?0:o.hb);}
   map.setPaintProperty('ltLbl','text-halo-color',on?'#e9dcc0':'rgba(22,14,4,.92)');map.setPaintProperty('ltLbl','text-halo-width',on?1.4:2.2);
   map.setPaintProperty('ltLbl','text-color',on?'#3d2612':'#fff4d6');map.setLayoutProperty('ltLbl','text-font',on?FONT_OLD:FONT_I);
-  map.setLayoutProperty('marks','icon-image',['concat',on?'':'D_',['get','icon']]);
+  map.setLayoutProperty('marks','icon-image',['concat',on?'':'D_',['get','icon'],['coalesce',['get','ls'],'']]);map.setLayoutProperty('pois','icon-image',['concat',on?'':'D_',['get','icon']]);
   map.setPaintProperty('dots','circle-color',DOTPAL(on,0));map.setPaintProperty('dots','circle-stroke-color',DOTPAL(on,1));
   // depth contours: light cyan on satellite, sepia/teal on old chart
   map.setPaintProperty('dcont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');
@@ -533,6 +538,23 @@ for(const k of SE.KEYS){ICONS[k]=SE.E(k);ICONS['D_'+k]=SE.D(k)}
   mooring:w(30,32,`<defs>${gr('o','#ffb74d','#e65100')}</defs><circle cx="15" cy="19" r="8" fill="url(#o)" stroke="#fff" stroke-width="1.5"/><circle cx="15" cy="8.5" r="3.2" fill="none" stroke="#eceff1" stroke-width="2"/><path d="M6 27q3-2 6 0t6 0 6 0" stroke="#bfe9ff" stroke-width="1.3" fill="none"/>`),
   fuel:ball('f','#FF9800','#E65100','<rect x="12" y="10" width="10" height="17" rx="1.5" fill="#fff"/><rect x="14" y="12.5" width="6" height="4.5" fill="#E65100"/><path d="M22 14h2.5v8.5a1.6 1.6 0 003.2 0V15.5l-2.5-3" stroke="#fff" stroke-width="1.8" fill="none"/>')};
  for(const k in POI_E){ICONS[k]=POI_E[k];ICONS['D_'+k]=POI_D[k]}}
+
+// v22: hospital/medical (svg), Old-chart harbour/marina navy O1, coloured light variants
+Object.assign(ICONS,{"p_hospital": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"36\" height=\"36\" viewBox=\"0 0 36 36\"><rect x=\"4.5\" y=\"4.5\" width=\"27\" height=\"27\" fill=\"#efe4cb\" stroke=\"#a3231d\" stroke-width=\"1.3\"/><rect x=\"6.6\" y=\"6.6\" width=\"22.8\" height=\"22.8\" fill=\"none\" stroke=\"#a3231d\" stroke-width=\".55\"/><g transform=\"translate(3.9 3.9) scale(.78)\"><path d=\"M12.5 10v16M23.5 10v16M12.5 18h11\" stroke=\"#a3231d\" stroke-width=\"3.6750000000000003\" stroke-linecap=\"square\" fill=\"none\"/></g></svg>", "D_p_hospital": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"36\" height=\"36\" viewBox=\"0 0 36 36\"><defs><radialGradient id=\"g\" cx=\".35\" cy=\".3\" r=\".8\"><stop offset=\"0\" stop-color=\"#e53935\"/><stop offset=\"1\" stop-color=\"#b71c1c\"/></radialGradient></defs><rect x=\"4\" y=\"4\" width=\"28\" height=\"28\" rx=\"5\" fill=\"url(#g)\" stroke=\"#fff\" stroke-width=\"2\"/><g transform=\"translate(3.6 3.6) scale(.8)\"><path d=\"M12.5 10v16M23.5 10v16M12.5 18h11\" stroke=\"#fff\" stroke-width=\"4.55\" stroke-linecap=\"square\" fill=\"none\"/></g></svg>", "p_medical": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"36\" height=\"36\" viewBox=\"0 0 36 36\"><circle cx=\"18\" cy=\"18\" r=\"15\" fill=\"#efe4cb\" stroke=\"#a3231d\" stroke-width=\"1.2\"/><circle cx=\"18\" cy=\"18\" r=\"12.6\" fill=\"none\" stroke=\"#a3231d\" stroke-width=\".55\"/><g transform=\"translate(3.9 3.9) scale(.78)\"><path d=\"M15 9h6v6h6v6h-6v6h-6v-6H9v-6h6z\" fill=\"#a3231d\"/></g></svg>", "D_p_medical": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"36\" height=\"36\" viewBox=\"0 0 36 36\"><circle cx=\"18\" cy=\"18\" r=\"14.5\" fill=\"#fff\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"18\" cy=\"18\" r=\"13.3\" fill=\"none\" stroke=\"#d32f2f\" stroke-width=\"1.4\"/><g transform=\"translate(3.6 3.6) scale(.8)\"><path d=\"M15 9h6v6h6v6h-6v6h-6v-6H9v-6h6z\" fill=\"#d32f2f\"/></g></svg>", "harbour": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"36\" height=\"36\" viewBox=\"0 0 36 36\"><circle cx=\"18\" cy=\"18\" r=\"15\" fill=\"#efe4cb\" stroke=\"#1F3A5F\" stroke-width=\"1.2\"/><circle cx=\"18\" cy=\"18\" r=\"12.5\" fill=\"none\" stroke=\"#1F3A5F\" stroke-width=\".6\"/><g transform=\"translate(3.6 3.4) scale(.8)\"><g fill=\"none\" stroke=\"#1F3A5F\" stroke-width=\"1.8\" stroke-linecap=\"round\"><circle cx=\"18\" cy=\"9.5\" r=\"2.4\"/><path d=\"M18 12v15M13.5 15.5h9M10.5 21.5c1 4.5 4 6.5 7.5 6.5s6.5-2 7.5-6.5\"/></g></g></svg>", "marina": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"36\" height=\"36\" viewBox=\"0 0 36 36\"><defs></defs><g transform=\"translate(18 15.5) scale(0.9) translate(-18 -18)\"><path d=\"M3.6 14.2C3.6 12.9 4.8 12.4 6.1 12.8C9.8 14 13.4 14.6 18 14.6S26.2 14 29.9 12.8C31.2 12.4 32.4 12.9 32.4 14.2C32.4 15.7 31 16.6 28.8 17.2C25.6 18 23.6 18.7 22.9 20.4L23.3 23H12.7L13.1 20.4C12.4 18.7 10.4 18 7.2 17.2C5 16.6 3.6 15.7 3.6 14.2Z M15.7 23C15.8 21.3 16.7 20.3 18 20.3S20.2 21.3 20.3 23Z\" fill-rule=\"evenodd\" fill=\"#f1e6cc\" stroke=\"#f1e6cc\" stroke-width=\"2.4\" paint-order=\"stroke\"/><clipPath id=\"cc\"><path d=\"M3.6 14.2C3.6 12.9 4.8 12.4 6.1 12.8C9.8 14 13.4 14.6 18 14.6S26.2 14 29.9 12.8C31.2 12.4 32.4 12.9 32.4 14.2C32.4 15.7 31 16.6 28.8 17.2C25.6 18 23.6 18.7 22.9 20.4L23.3 23H12.7L13.1 20.4C12.4 18.7 10.4 18 7.2 17.2C5 16.6 3.6 15.7 3.6 14.2Z M15.7 23C15.8 21.3 16.7 20.3 18 20.3S20.2 21.3 20.3 23Z\" fill-rule=\"evenodd\"/></clipPath><g clip-path=\"url(#cc)\" stroke=\"#1F3A5F\" stroke-width=\"0.6\" opacity=\".75\"><path d=\"M6 24L11 15.8\"/><path d=\"M8.8 24L13.8 15.8\"/><path d=\"M11.6 24L16.6 15.8\"/><path d=\"M14.399999999999999 24L19.4 15.8\"/><path d=\"M17.2 24L22.2 15.8\"/><path d=\"M20 24L25 15.8\"/><path d=\"M22.799999999999997 24L27.799999999999997 15.8\"/><path d=\"M25.599999999999998 24L30.599999999999998 15.8\"/><path d=\"M28.4 24L33.4 15.8\"/></g><path d=\"M3.6 14.2C3.6 12.9 4.8 12.4 6.1 12.8C9.8 14 13.4 14.6 18 14.6S26.2 14 29.9 12.8C31.2 12.4 32.4 12.9 32.4 14.2C32.4 15.7 31 16.6 28.8 17.2C25.6 18 23.6 18.7 22.9 20.4L23.3 23H12.7L13.1 20.4C12.4 18.7 10.4 18 7.2 17.2C5 16.6 3.6 15.7 3.6 14.2Z M15.7 23C15.8 21.3 16.7 20.3 18 20.3S20.2 21.3 20.3 23Z\" fill-rule=\"evenodd\" fill=\"none\" stroke=\"#1F3A5F\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><path d=\"M10.5 23H25.5A1 1 0 0126.5 24V25.4H9.5V24A1 1 0 0110.5 23Z\" fill=\"#f1e6cc\" stroke=\"#1F3A5F\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><path d=\"M7 13.9C11 15.1 14 15.6 18 15.6S25 15.1 29 13.9\" stroke=\"#1F3A5F\" stroke-width=\".4\" fill=\"none\"/></g><rect x=\"4.5\" y=\"21.6\" width=\"27\" height=\"7.4\" rx=\"0\" fill=\"#e6d7b5\" stroke=\"#1F3A5F\" stroke-width=\"1.1\" paint-order=\"stroke\"/><path d=\"M4.5 23.8H31.5M14.76 23.8V29M24.75 23.8V29\" stroke=\"#1F3A5F\" stroke-width=\"0.7\" fill=\"none\"/><g stroke=\"#1F3A5F\" stroke-width=\".4\"><path d=\"M5.5 28.7l1.6 -3.4\"/><path d=\"M9.666666666666668 28.7l1.6 -3.4\"/><path d=\"M13.833333333333334 28.7l1.6 -3.4\"/><path d=\"M18 28.7l1.6 -3.4\"/><path d=\"M22.166666666666668 28.7l1.6 -3.4\"/><path d=\"M26.333333333333332 28.7l1.6 -3.4\"/></g><path d=\"M5 32.6q1 -1 2 0t2 0q1 -1 2 0t2 0q1 -1 2 0t2 0q1 -1 2 0t2 0q1 -1 2 0t2 0q1 -1 2 0t2 0q1 -1 2 0t2 0\" stroke=\"#1F3A5F\" stroke-width=\"0.8\" fill=\"none\" stroke-linecap=\"round\"/></svg>"});
+{const C={D:{R:['#e53935','#ff8a80'],G:['#2e9e44','#a5e8b0'],W:['#ffd54f','#fff59d']},E:{R:['#b03a2e','#b03a2e'],G:['#2e7d4f','#2e7d4f'],W:['#b8862b','#b8862b']}};
+ const MAIN={D:['#ffd54f','#ffeb3b'],E:['#b8862b']},TINT={D:['#fff59d','#fff7b0'],E:[]};
+ const recol=(s,key,st)=>{const cs=key.split(''),c=C[st];let o=s;
+  if(cs.length===1){for(const m of MAIN[st])o=o.split(m).join(c[cs[0]][0]);for(const m of TINT[st])o=o.split(m).join(c[cs[0]][1]);return o}
+  const stops=cs.map((x,i)=>`<stop offset="${i/cs.length}" stop-color="${c[x][0]}"/><stop offset="${(i+1)/cs.length}" stop-color="${c[x][0]}"/>`).join('');
+  const tst=cs.map((x,i)=>`<stop offset="${i/cs.length}" stop-color="${c[x][1]}"/><stop offset="${(i+1)/cs.length}" stop-color="${c[x][1]}"/>`).join('');
+  o=o.replace(/(<svg[^>]*>)/,`$1<defs><linearGradient id="lsp" x1="0" x2="1">${stops}</linearGradient><linearGradient id="lst" x1="0" x2="1">${tst}</linearGradient></defs>`);
+  for(const m of MAIN[st])o=o.replace(new RegExp(`(fill|stroke)="${m}"`,'g'),'$1="url(#lsp)"').split(m).join(c[cs[0]][0]);
+  for(const m of TINT[st])o=o.replace(new RegExp(`(fill|stroke)="${m}"`,'g'),'$1="url(#lst)"').split(m).join(c[cs[0]][1]);
+  o=o.replace(/fill="url\(#gl\)"/g,'fill="url(#lst)" opacity=".8"');return o};
+ for(const b of['light','light_major'])for(const k of['R','G','RG','RW','GW','RGW']){ICONS[b+'_'+k]=recol(ICONS[b],k,'E');ICONS['D_'+b+'_'+k]=recol(ICONS['D_'+b],k,'D')}}
+const POI_PNG=['chandlery','grocery','hardware','gshop','pharmacy','rest','fishrest','steak','service'];
+function loadPoiPng(){return Promise.all(POI_PNG.flatMap(n=>[['',  'old'],['D_','sat']].map(([pf,v])=>new Promise(res=>{const id=pf+(n==='chandlery'?'shop':'p_'+n);const img=new Image();
+  img.onload=()=>{try{if(map.hasImage(id))map.removeImage(id);map.addImage(id,img,{pixelRatio:3})}catch(e){console.warn('poi icon',id,e)}res()};img.onerror=()=>{console.warn('poi icon load',id);res()};img.src=`icons/poi/${n}-${v}.png?v=22`}))))}
 // iOS Safari: SVG data-URL images with <filter> rendered to canvas silently fail/taint (getImageData throws) and the
 // old code swallowed the error, so no icon was ever registered. Now: filter-free SVG with explicit size, decode(),
 // shadow drawn by canvas, HTMLImageElement fallback, and a 'styleimagemissing' safety net.
@@ -557,7 +579,12 @@ const TYPE_BG={buoy_lateral:'Lateral buoy',buoy_cardinal:'Cardinal buoy',buoy_is
   light_major:'Lighthouse',light_minor:'Navigation light',harbour:'Harbour',anchorage:'Anchorage',mooring:'Mooring',rock:'Rock',wreck:'Wreck',obstruction:'Obstruction',marina:'Marina',fuel:'Fuel station'};
 const COL_BG={red:'red',green:'green',white:'white',yellow:'yellow',blue:'blue',orange:'orange',violet:'violet',black:'black'};
 const CAT_BG={north:'north',south:'south',east:'east',west:'west',port:'port',starboard:'starboard'};
+const POI_LBL={chandlery:'Chandlery',grocery:'Grocery',hardware:'Hardware',gshop:'Shop',pharmacy:'Pharmacy',rest:'Restaurant',fishrest:'Fish taverna',steak:'Grill / steakhouse',service:'Boat service',hospital:'Hospital',medical:'Medical point'};
+// v22: light colour suffix from OSM colour tags (R/G/W; yellow counts as W)
+function lsuf(ic,t){if(ic!=='light'&&ic!=='light_major')return'';const s=new Set();for(const k in t)if(/^seamark:light(:\d+)?:colour$/.test(k))String(t[k]).split(/[;,]/).forEach(c=>{c=c.trim();if(c)s.add(c==='red'?'R':c==='green'?'G':'W')});
+  const k=['R','G','W'].filter(x=>s.has(x)).join('');return k&&k!=='W'?'_'+k:''}
 function classify(t){
+  if(t.poi)return[t.poi==='chandlery'?'shop':'p_'+t.poi,POI_LBL[t.poi]||'POI',1];
   const st=t['seamark:type']||'';
   if(t.leisure==='marina'||st==='harbour'&&/marina/.test(t['seamark:harbour:category']||''))return['marina',TYPE_BG.marina,5];
   if(/^(boat|chandler|ship_chandler|marine|fishing)$/.test(t.shop||'')||/chandler/.test(t['seamark:small_craft_facility:category']||''))return['shop','Boat shop',2];
@@ -597,7 +624,7 @@ function toFeature(e){
   const t=e.tags||{};const c=classify(t);if(!c)return null;
   const lon=e.lon!=null?e.lon:e.center&&e.center.lon,lat=e.lat!=null?e.lat:e.center&&e.center.lat;if(lon==null)return null;
   const id=e.type+e.id;markById.set(id,t);
-  return{type:'Feature',id:undefined,geometry:{type:'Point',coordinates:[lon,lat]},properties:{id,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):''}};
+  return{type:'Feature',id:undefined,geometry:{type:'Point',coordinates:[lon,lat]},properties:{id,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):'',ls:lsuf(c[0],t)}};
 }
 // v19: merge duplicate marina/harbour points (same name or unnamed within 150 m; unnamed within 300 m of a named one)
 function dedupeHarbours(feats){const H=[],out=[];for(const f of feats)(f.properties.icon==='marina'||f.properties.icon==='harbour'?H:out).push(f);
@@ -637,15 +664,18 @@ async function fetchCells(keys){
 // ---------- static Greek dataset (bundled, cached by SW); live Overpass only outside Greece ----------
 const GR_BB=[19.3,34.5,29.7,41.8];let staticFeats=null,staticState='idle';
 const inGreece=b=>b.getEast()>GR_BB[0]&&b.getWest()<GR_BB[2]&&b.getNorth()>GR_BB[1]&&b.getSouth()<GR_BB[3];
+async function loadPoi(){try{const r=await fetch('data/poi-gr.geojson?v=22',{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
+  for(const f of d.features){const t=f.properties,c=classify(t);if(!c)continue;markById.set(t.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:t.id,od:-1,oz:0,icon:c[0],kind:c[1],prio:-c[2],lt:''}})}
+  refreshMarks()}catch(e){console.warn('poi data',e)}}
 async function loadStatic(){if(staticState!=='idle')return;staticState='loading';setStatus('Loading seamarks…');
   let lastErr='';
-  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=21',{credentials:'same-origin',cache:'no-cache'});
+  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=22',{credentials:'same-origin',cache:'no-cache'});
       if(r.redirected&&!new URL(r.url).pathname.endsWith('.geojson'))throw new Error('redirected to '+new URL(r.url).host+new URL(r.url).pathname);
       if(!r.ok)throw new Error('HTTP '+r.status+(r.status===401||r.status===403?' (site login/access)':''));
       const txt=await r.text();let d;try{d=JSON.parse(txt)}catch(_){throw new Error('bad data ('+(r.headers.get('content-type')||'?')+'): '+txt.slice(0,40))}
       staticFeats=[];for(const f of d.features){const p=f.properties,t={};for(const k in p)if(k!=='id'&&k!=='_od'&&k!=='_oz')t[k[0]==='~'?'seamark:'+k.slice(1):k]=p[k];
-        const c=classify(t);if(!c)continue;markById.set(p.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:p.id,od:p._od==null?-1:p._od,oz:p._oz||0,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):''}})}
-      staticState='ready';refreshMarks();setTimeout(()=>loadMarks(true),300);return}
+        const c=classify(t);if(!c)continue;markById.set(p.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:p.id,od:p._od==null?-1:p._od,oz:p._oz||0,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):'',ls:lsuf(c[0],t)}})}
+      staticState='ready';refreshMarks();loadPoi();setTimeout(()=>loadMarks(true),300);return}
     catch(e){lastErr=e&&e.message||String(e);console.warn('static seamarks',e);setStatus('Seamarks failed: '+lastErr+' – retrying…');await new Promise(r=>setTimeout(r,1500))}}
   staticState='failed';setStatus('Seamarks failed: '+lastErr)}
 async function loadMarks(quiet){
@@ -678,7 +708,7 @@ function countVisible(){try{return map.queryRenderedFeatures({layers:['marks']})
 function scheduleMarks(ms=700){clearTimeout(markTimer);markTimer=setTimeout(loadMarks,ms)}
 map.on('moveend',scheduleMarks);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-map.on('click','marks',e=>{const f=e.features[0];const t=markById.get(f.properties.id)||{};
+for(const __l of['marks','pois'])map.on('click',__l,e=>{const f=e.features[0];const t=markById.get(f.properties.id)||{};
   const name=t['name:en']||t['seamark:name:en']||t.name_en||t['name:latin']||t['int_name']||t.name||t['seamark:name']||'';const lt=lightText(t);
   const st=t['seamark:type'];const cat=st&&t[`seamark:${st}:category`];
   let h=`<div class="mk">${name?`<b>${esc(name)}</b>`:''}<div>${esc(f.properties.kind)}${cat&&CAT_BG[cat]?' – '+CAT_BG[cat]:''}</div>`;
@@ -688,11 +718,11 @@ map.on('click','marks',e=>{const f=e.features[0];const t=markById.get(f.properti
   if(t.website)h+=`<div class="sm"><a href="${esc(t.website)}" target="_blank" rel="noopener">Website</a></div>`;
   h+='</div>';
   new maplibregl.Popup({offset:14,maxWidth:'260px'}).setLngLat(f.geometry.coordinates).setHTML(h).addTo(map)});
-map.on('mouseenter','marks',()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave','marks',()=>map.getCanvas().style.cursor='');
+for(const __l of['marks','pois']){map.on('mouseenter',__l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',__l,()=>map.getCanvas().style.cursor='')}map.on('mouseleave','marks',()=>map.getCanvas().style.cursor='');
 
 let marksStarted=false;function startMarks(){if(marksStarted)return;marksStarted=true;
   if(OVERLAYS.marks.on)setStatus(map.getZoom()<MARK_MINZ?'Zoom in to see seamarks':'Loading seamarks…',map.getZoom()<MARK_MINZ?4000:0);
-  loadIcons().catch(e=>console.warn(e)).then(()=>{window.__marksReady=true;scheduleMarks(50)});}
+  loadIcons().then(loadPoiPng).catch(e=>console.warn(e)).then(()=>{window.__marksReady=true;scheduleMarks(50)});}
 if(map.loaded())startMarks();else{map.once('load',startMarks);map.once('idle',startMarks);setTimeout(startMarks,8000)}
 map.on('error',e=>console.warn('map error',e.error&&e.error.message));window.__map=map;
 
