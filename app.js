@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v14';
+const APP_VERSION='v15';
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -65,7 +65,11 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'route',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,4,18,10]}},
     {id:'marks',type:'symbol',source:'marks',minzoom:11,layout:{'icon-image':['get','icon'],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
       'symbol-sort-key':['get','prio'],
-      'icon-size':['interpolate',['linear'],['zoom'],11,0.45,14,0.7,17,1]}},
+      'icon-size':['interpolate',['linear'],['zoom'],11,['match',['get','icon'],'light_major',.7,.5],14,['match',['get','icon'],'light_major',.95,.75],17,1.05]}},
+    {id:'ltLbl',type:'symbol',source:'marks',minzoom:11,filter:['!=',['coalesce',['get','lt'],''],''],layout:{'text-field':['get','lt'],'text-font':FONT_OLD,
+      'text-size':['interpolate',['linear'],['zoom'],11,11,15,13],'text-optional':true,'text-max-width':16,
+      'symbol-sort-key':['get','prio'],'text-variable-anchor':['left','right','top','bottom'],'text-radial-offset':1.1},
+      paint:{'text-color':'#3d2612','text-halo-color':'rgba(239,228,203,.95)','text-halo-width':1.8}},
     {id:'lblWater',type:'symbol',source:'omt','source-layer':'water_name',layout:{'text-field':NAME_EN,'text-font':FONT_I,'text-size':['interpolate',['linear'],['zoom'],5,11,12,14],'text-max-width':8,'symbol-placement':'point'},paint:Object.assign({'text-color':'#bfe6ff'},HALO)},
     {id:'lblIsland',type:'symbol',source:'omt','source-layer':'place',filter:['in',['get','class'],['literal',['island','islet']]],minzoom:8,layout:{'text-field':NAME_EN,'text-font':FONT_I,'text-size':12},paint:Object.assign({'text-color':'#fff5d6'},HALO)},
     {id:'lblPlace',type:'symbol',source:'omt','source-layer':'place',filter:['in',['get','class'],['literal',['city','town','village','hamlet','suburb','neighbourhood']]],
@@ -75,7 +79,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
   ]};
 const BASES={sat:{label:'Satellite (Esri)',layers:['sat']},topo:{label:'Topo map (Esri)',layers:['topo']},osm:{label:'OpenStreetMap (streets)',layers:['osm']},old:{label:'Old chart',layers:['old_bg','old_land','old_water','old_rip0','old_rip1','old_rip2','old_coast','old_bld','old_roads','old_ferry']}};
 const INIT_BASE=BASES[qs.get('base')]?qs.get('base'):'sat';
-const OVERLAYS={marks:{label:'Seamarks',on:true},labels:{label:'Place & water labels',on:true,layers:['lblWater','lblIsland','lblPlace']},depth:{label:'Depth (EMODnet)'},contours:{label:'Contours (EMODnet WMS)'},dcont:{label:'Depth contours',layers:['dband','dcont','dcontS','dcontLbl']},osmSea:{label:'OpenSeaMap (legacy raster)'}};
+const OVERLAYS={marks:{label:'Seamarks',on:true,layers:['marks','ltLbl']},labels:{label:'Place & water labels',on:true,layers:['lblWater','lblIsland','lblPlace']},depth:{label:'Depth (EMODnet)'},contours:{label:'Contours (EMODnet WMS)'},dcont:{label:'Depth contours',layers:['dband','dcont','dcontS','dcontLbl']},osmSea:{label:'OpenSeaMap (legacy raster)'}};
 
 const map=new maplibregl.Map({container:'map',style,
   center:[+(qs.get('lon')||23.3219),+(qs.get('lat')||42.6977)],zoom:+(qs.get('z')||13),
@@ -99,6 +103,7 @@ function setOldTheme(on){
     map.setPaintProperty(id,'text-color',on?(w?'#3f5f5c':'#4a3018'):o.color);
     map.setPaintProperty(id,'text-halo-color',on?(w?'#b9cfc9':'#e9dcc0'):o.hc);
     map.setPaintProperty(id,'text-halo-width',on?1.5:o.hw);map.setPaintProperty(id,'text-halo-blur',on?0:o.hb);}
+  map.setPaintProperty('ltLbl','text-halo-color',on?'#e9dcc0':'rgba(239,228,203,.95)');map.setPaintProperty('ltLbl','text-halo-width',on?1.4:1.8);
   // depth contours: light cyan on satellite, sepia/teal on old chart
   map.setPaintProperty('dcont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');
   map.setPaintProperty('dcontS','line-color',on?'#2f6f6a':'#bff4ff');
@@ -333,12 +338,161 @@ const ICONS={
   danger:wrap(36,36,'<path d="M18 3l15 15-15 15L3 18z" fill="#fff" stroke="#c62828" stroke-width="2.5"/><path d="M11 18h14M18 11v14" stroke="#c62828" stroke-width="3"/>'),
   wreck:wrap(40,30,'<path d="M4 15h32M12 9v12M20 6v18M28 9v12" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M4 15h32M12 9v12M20 6v18M28 9v12" stroke="#c62828" stroke-width="2.6" stroke-linecap="round"/>'),
 };
+// ---------- seamark icon set E (antique engraved) + light labels + lateral classifier ----------
+const SE=(()=>{
+// Icon set proposals A–E. Each set: keys -> SVG string (with width/height attrs)
+const W=(w,h,b,defs='')=>`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${defs?'<defs>'+defs+'</defs>':''}${b}</svg>`;
+const R='#e3262b',G='#16a34a',Y='#f5c400',K='#151515',Wh='#ffffff';
+const KEYS=['light_major','light','beacon','lat_red','lat_green','lat_redgreen','lat_greenred','card_north','card_east','card_south','card_west','isolated','safe','special','rock','rock_awash','wreck','danger'];
+const LABELS={light_major:'Major lighthouse',light:'Minor light',beacon:'Beacon (generic)',lat_red:'Port lateral (red, IALA A)',lat_green:'Starboard lateral (green)',lat_redgreen:'Preferred channel to stbd',lat_greenred:'Preferred channel to port',card_north:'North cardinal',card_east:'East cardinal',card_south:'South cardinal',card_west:'West cardinal',isolated:'Isolated danger',safe:'Safe water',special:'Special (yellow)',rock:'Rock (submerged)',rock_awash:'Rock (awash / dries)',wreck:'Wreck',danger:'Obstruction'};
+// cardinal bands top->bottom and topmark (cone directions top->bottom: 1 up, 0 down)
+const CB={north:[[K,Y],[1,1]],south:[[Y,K],[0,0]],east:[[K,Y,K],[1,0]],west:[[Y,K,Y],[0,1]]};
+const bandsOf=k=>({lat_red:[R],lat_green:[G],lat_redgreen:[R,G,R],lat_greenred:[G,R,G],isolated:[K,R,K],safe:[R,Wh,R,Wh],special:[Y],card_north:CB.north[0],card_east:CB.east[0],card_south:CB.south[0],card_west:CB.west[0]})[k];
+const cones=(cx,y,dirs,c,s,stroke)=>dirs.map((d,i)=>{const yy=y+i*(s+1);return d?`<path d="M${cx} ${yy}l${s*.7} ${s}h${-s*1.4}z" fill="${c}" ${stroke}/>`:`<path d="M${cx} ${yy+s}l${s*.7} ${-s}h${-s*1.4}z" fill="${c}" ${stroke}/>`}).join('');
+const topmarkFor=(k,cx,y,s,st,col)=>{col=col||{};const sk=`stroke="${st||'#fff'}" stroke-width="1"`;
+  if(k==='lat_red'||k==='lat_redgreen')return `<rect x="${cx-s*.55}" y="${y}" width="${s*1.1}" height="${s}" fill="${col.r||R}" ${sk}/>`;
+  if(k==='lat_green'||k==='lat_greenred')return `<path d="M${cx} ${y}l${s*.7} ${s}h${-s*1.4}z" fill="${col.g||G}" ${sk}/>`;
+  if(k.startsWith('card_'))return cones(cx,y-s*.9,CB[k.slice(5)][1],col.k||K,s*.9,sk);
+  if(k==='isolated')return `<circle cx="${cx}" cy="${y-s*.4}" r="${s*.45}" fill="${col.k||K}" ${sk}/><circle cx="${cx}" cy="${y+s*.6}" r="${s*.45}" fill="${col.k||K}" ${sk}/>`;
+  if(k==='safe')return `<circle cx="${cx}" cy="${y+s*.4}" r="${s*.5}" fill="${col.r||R}" ${sk}/>`;
+  if(k==='special')return `<path d="M${cx-s*.5} ${y}l${s} ${s}M${cx+s*.5} ${y}l${-s} ${s}" stroke="${col.y||Y}" stroke-width="${s*.35}"/>`;
+  return ''};
+const SHAPE={lat_red:'can',lat_redgreen:'can',lat_green:'cone',lat_greenred:'cone',safe:'sphere',special:'pillar'};
+// ---------------- A: modern flat badges ----------------
+function A(k){const bd=(fill,inner,r=14)=>W(36,36,`<circle cx="18" cy="18" r="${r}" fill="${fill}" stroke="#fff" stroke-width="2.5"/>${inner}`);
+  const tower='<path d="M15.5 27l1.3-13h2.4l1.3 13z" fill="#fff"/><rect x="15.6" y="10.5" width="4.8" height="3" rx="1" fill="#fff"/><path d="M11 9.5l4 1.8M25 9.5l-4 1.8M18 6v2.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>';
+  if(k==='light_major')return W(40,40,`<circle cx="20" cy="20" r="17" fill="#f59e0b" stroke="#fff" stroke-width="2.5"/><g transform="translate(2 3)">${tower}</g>`);
+  if(k==='light')return W(26,26,'<circle cx="13" cy="13" r="9" fill="#fbbf24" stroke="#fff" stroke-width="2"/><circle cx="13" cy="13" r="3" fill="#fff"/>');
+  if(k==='beacon')return W(26,26,'<circle cx="13" cy="13" r="8" fill="#64748b" stroke="#fff" stroke-width="2"/><rect x="11.5" y="7.5" width="3" height="11" rx="1" fill="#fff"/>');
+  if(k==='rock')return W(26,26,'<circle cx="13" cy="13" r="9" fill="#334155" stroke="#fff" stroke-width="2"/><path d="M8.5 13h9M13 8.5v9" stroke="#fff" stroke-width="2.2"/>');
+  if(k==='rock_awash')return W(26,26,'<circle cx="13" cy="13" r="9" fill="#b45309" stroke="#fff" stroke-width="2"/><path d="M9 9l8 8M17 9l-8 8M8 13h10M13 8v10" stroke="#fff" stroke-width="1.6"/>');
+  if(k==='wreck')return W(30,26,'<rect x="2" y="3" width="26" height="20" rx="10" fill="#334155" stroke="#fff" stroke-width="2"/><path d="M8 15h14M11 11v8M15 9v10M19 11v8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>');
+  if(k==='danger')return W(30,28,'<path d="M15 3l12 21H3z" fill="#ea580c" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 10v7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="15" cy="20.5" r="1.4" fill="#fff"/>');
+  const b=bandsOf(k),n=b.length,h=28/n;const strips=b.map((c,i)=>`<rect x="4" y="${4+i*h}" width="28" height="${h+.2}" fill="${c}"/>`).join('');
+  let glyph='';
+  if(k==='lat_red')glyph='<rect x="13" y="13" width="10" height="10" rx="1.5" fill="#fff"/>';
+  else if(k==='lat_green')glyph='<path d="M18 11l6.5 11h-13z" fill="#fff"/>';
+  else if(k.startsWith('card_'))glyph=cones(18,9,CB[k.slice(5)][1],'#fff',8,'stroke="#000" stroke-opacity=".35" stroke-width=".8"');
+  else if(k==='isolated')glyph='<circle cx="18" cy="13.5" r="3" fill="#fff"/><circle cx="18" cy="22.5" r="3" fill="#fff"/>';
+  else if(k==='safe'){return W(36,36,`<clipPath id="c"><circle cx="18" cy="18" r="14"/></clipPath><g clip-path="url(#c)"><rect width="36" height="36" fill="${R}"/>${[8,16,24].map(x=>`<rect x="${x}" y="0" width="4" height="36" fill="#fff"/>`).join('')}</g><circle cx="18" cy="18" r="14" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="18" cy="18" r="4.5" fill="${R}" stroke="#fff" stroke-width="1.5"/>`)}
+  else if(k==='special')glyph='<path d="M13 13l10 10M23 13l-10 10" stroke="#151515" stroke-width="2.8" stroke-linecap="round"/>';
+  else if(k==='lat_redgreen'||k==='lat_greenred')glyph=k==='lat_redgreen'?'<rect x="14" y="14" width="8" height="8" rx="1" fill="#fff"/>':'<path d="M18 13l5 9h-10z" fill="#fff"/>';
+  return W(36,36,`<clipPath id="c"><circle cx="18" cy="18" r="14"/></clipPath><g clip-path="url(#c)">${strips}</g><circle cx="18" cy="18" r="14" fill="none" stroke="#fff" stroke-width="2.5"/>${glyph}`)}
+// ---------------- B: IALA / INT-1 paper chart ----------------
+const MAG='#c0219a';
+const flare=(x,y,a=-45,l=16)=>`<path d="M${x} ${y}q${-3.5} ${-l*.55} 0 ${-l}q3.5 ${l*.45} 0 ${l}z" fill="${MAG}" opacity=".9" transform="rotate(${a+90} ${x} ${y})"/>`;
+function buoyShape(shape,cx,base,bands,stroke){ // INT-1 shapes, upright with slight style
+  const o=`stroke="${stroke}" stroke-width="1.2"`;let clip,outline;
+  if(shape==='can'){clip=`M${cx-6} ${base}v-13h12v13z`}
+  else if(shape==='cone'){clip=`M${cx-7} ${base}l7-15 7 15z`}
+  else if(shape==='sphere'){clip=`M${cx-7} ${base-1}a7 7 0 1 1 14 0z`}
+  else if(shape==='spar'){clip=`M${cx-2.2} ${base}v-20h4.4v20z`}
+  else {clip=`M${cx-6} ${base}l2.5-18h7l2.5 18z`} // pillar
+  const top=base-22,hh=22,bh=hh/bands.length;
+  const strips=bands.map((c,i)=>`<rect x="${cx-9}" y="${top+i*bh}" width="18" height="${bh+.2}" fill="${c}"/>`).join('');
+  const id='c'+shape+Math.round(cx);
+  return `<clipPath id="${id}"><path d="${clip}"/></clipPath><g clip-path="url(#${id})">${strips}</g><path d="${clip}" fill="none" ${o}/>`}
+function B(k){
+  if(k==='light_major')return W(44,44,`${flare(22,26,-60,20)}<path d="M22 14l2.9 8.5 8.9.1-7.2 5.3 2.7 8.6-7.3-5.2-7.3 5.2 2.7-8.6-7.2-5.3 8.9-.1z" fill="#111" stroke="#fff" stroke-width="1"/><circle cx="22" cy="26" r="2" fill="#fff"/>`);
+  if(k==='light')return W(30,30,`${flare(13,20,-50,15)}<circle cx="13" cy="20" r="2.6" fill="#111" stroke="#fff" stroke-width="1"/>`);
+  if(k==='beacon')return W(30,34,`${flare(13,26,-50,13)}<path d="M13 28V10" stroke="#111" stroke-width="2.4"/><path d="M8 28h10" stroke="#111" stroke-width="2"/><circle cx="13" cy="9" r="3" fill="#111"/>`);
+  if(k==='rock')return W(24,24,'<path d="M5 12h14M12 5v14" stroke="#fff" stroke-width="4"/><path d="M5 12h14M12 5v14" stroke="#111" stroke-width="1.8"/>');
+  if(k==='rock_awash')return W(24,24,'<g stroke="#fff" stroke-width="4"><path d="M5 12h14M12 5v14M7 7l10 10M17 7L7 17"/></g><g stroke="#111" stroke-width="1.6"><path d="M5 12h14M12 5v14M7 7l10 10M17 7L7 17"/></g><circle cx="12" cy="12" r="1.8" fill="#111"/>');
+  if(k==='wreck')return W(34,22,'<g stroke="#fff" stroke-width="4" stroke-linecap="round"><path d="M4 11h26M11 6v10M17 4v14M23 6v10"/></g><g stroke="#111" stroke-width="1.7" stroke-linecap="round"><path d="M4 11h26M11 6v10M17 4v14M23 6v10"/></g>');
+  if(k==='danger')return W(30,30,'<circle cx="15" cy="15" r="11" fill="rgba(120,180,255,.35)" stroke="#111" stroke-width="1.6" stroke-dasharray="2 2"/><text x="15" y="18" font-family="Georgia,serif" font-style="italic" font-size="7.5" text-anchor="middle" fill="#111">Obstn</text>');
+  const sh=k.startsWith('card_')||k==='isolated'?'pillar':SHAPE[k]||'pillar';const base=36;
+  const tm=topmarkFor(k,20,k.startsWith('card_')?9:6,6,'#fff');
+  return W(40,44,`${flare(20,base,-40,14)}<path d="M20 ${base-22}V${base-24}" stroke="#111" stroke-width="1.5"/>${buoyShape(sh,20,base,bandsOf(k),'#111')}<path d="M12 ${base}h16" stroke="#111" stroke-width="1.5"/><circle cx="20" cy="${base+2}" r="2" fill="#fff" stroke="#111" stroke-width="1.2"/>${tm}`)}
+// ---------------- C: minimal outline ----------------
+function C(k){const halo=(d,c,sw=2)=>`<g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="${d}" stroke="rgba(255,255,255,.95)" stroke-width="${sw+2.6}"/><path d="${d}" stroke="${c}" stroke-width="${sw}"/></g>`;
+  if(k==='light_major')return W(36,36,halo('M14 30l2-16h4l2 16zM13 30h10M15 14h6M16.5 10h3v4h-3zM9 9l4 2M27 9l-4 2M18 4v3','#f59e0b',2));
+  if(k==='light')return W(24,24,halo('M12 7v3M12 14v3M7 12h3M14 12h3','#f59e0b',2)+'<circle cx="12" cy="12" r="2.4" fill="#f59e0b" stroke="#fff"/>');
+  if(k==='beacon')return W(24,30,halo('M12 26V8M8 26h8M12 8l-3 -3M12 8l3 -3','#e2e8f0',2));
+  if(k==='rock')return W(22,22,halo('M5 11h12M11 5v12','#f8fafc',2));
+  if(k==='rock_awash')return W(22,22,halo('M5 11h12M11 5v12M7 7l8 8M15 7l-8 8','#fbbf24',1.8));
+  if(k==='wreck')return W(30,22,halo('M4 11h22M10 7v8M15 5v12M20 7v8','#f8fafc',2));
+  if(k==='danger')return W(26,24,halo('M13 4l10 17H3zM13 10v5M13 18v.5','#fb923c',2));
+  const sh=k.startsWith('card_')||k==='isolated'?'pillar':SHAPE[k]||'pillar';
+  const col=k==='lat_red'||k==='lat_redgreen'?R:k==='lat_green'||k==='lat_greenred'?'#22c55e':k==='special'?Y:k==='safe'?'#f87171':k==='isolated'?'#f87171':Y;
+  const d={can:'M12 30V17h12v13z',cone:'M11 30l7-15 7 15z',sphere:'M11 29a7 7 0 1 1 14 0z',pillar:'M12 30l2.5-16h7L24 30z'}[sh];
+  let tm='';if(k.startsWith('card_')){tm=cones(18,4,CB[k.slice(5)][1],'none',5,`stroke="${col}" stroke-width="1.8"`);tm=`<g stroke-linejoin="round">${tm.replace(/fill="none"/g,'fill="none" stroke-opacity="1"')}</g>`}
+  else if(k==='isolated')tm=`<circle cx="18" cy="6" r="2.6" fill="none" stroke="${col}" stroke-width="1.8"/><circle cx="18" cy="12" r="2.6" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+  const band=(k==='lat_redgreen'||k==='lat_greenred')?`<path d="M12 23h12" stroke="${k==='lat_redgreen'?'#22c55e':R}" stroke-width="2.4"/>`:'';
+  const inner=k.startsWith('card_')?`<path d="M14 22h8" stroke="${col}" stroke-width="1.5"/>`:'';
+  return W(36,36,halo(d,col,2.2)+band+inner+tm+'<path d="M10 32h16" stroke="#fff" stroke-width="1.5" opacity=".8"/>')}
+// ---------------- D: illustrated 3D ----------------
+function D(k){const g=(id,c1,c2)=>`<linearGradient id="${id}" x1="0" x2="1"><stop offset="0" stop-color="${c2}"/><stop offset=".45" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>`;
+  const sea='<ellipse cx="20" cy="41" rx="12" ry="3" fill="#0b4a6e" opacity=".55"/><path d="M9 41q3-2 6 0t6 0 6 0 5 0" stroke="#bfe9ff" stroke-width="1.2" fill="none"/>';
+  if(k==='light_major')return W(44,52,`<radialGradient id="gl"><stop offset="0" stop-color="#fff7b0" stop-opacity=".95"/><stop offset="1" stop-color="#ffd54f" stop-opacity="0"/></radialGradient>${g('tw','#ffffff','#c9ced6')}`+
+    `<circle cx="22" cy="11" r="11" fill="url(#gl)"/><path d="M15 46l3.2-28h7.6L29 46z" fill="url(#tw)" stroke="#334155" stroke-width=".8"/>`+
+    `<clipPath id="tc"><path d="M15 46l3.2-28h7.6L29 46z"/></clipPath><g clip-path="url(#tc)" fill="#d32f2f"><rect x="10" y="22" width="24" height="5"/><rect x="10" y="32" width="24" height="5"/><rect x="10" y="42" width="24" height="5"/></g>`+
+    `<rect x="17" y="15.5" width="10" height="3" rx="1" fill="#263238"/><rect x="18.5" y="9.5" width="7" height="6" rx="1" fill="#fff59d" stroke="#263238" stroke-width=".8"/><path d="M17.5 9.5L22 5.5l4.5 4z" fill="#b71c1c"/><path d="M11 49h22" stroke="#5d4037" stroke-width="3" stroke-linecap="round"/>`);
+  if(k==='light')return W(30,36,`<radialGradient id="gl"><stop offset="0" stop-color="#fff59d"/><stop offset="1" stop-color="#ffd54f" stop-opacity="0"/></radialGradient><circle cx="15" cy="10" r="9" fill="url(#gl)"/><path d="M12 32l1.5-18h3L18 32z" fill="#eceff1" stroke="#455a64" stroke-width=".8"/><rect x="12.5" y="9" width="5" height="5" rx="1" fill="#ffeb3b" stroke="#455a64" stroke-width=".8"/><path d="M9 33h12" stroke="#5d4037" stroke-width="2.4" stroke-linecap="round"/>`);
+  if(k==='beacon')return W(26,36,`${g('bg','#90a4ae','#546e7a')}<rect x="11" y="8" width="4" height="24" fill="url(#bg)"/><circle cx="13" cy="8" r="4" fill="#78909c" stroke="#37474f" stroke-width=".8"/><path d="M7 33h12" stroke="#5d4037" stroke-width="2.4" stroke-linecap="round"/>`);
+  if(k==='rock'||k==='rock_awash')return W(32,24,`<path d="M4 18q4-11 10-12t9 5 5 7z" fill="#6d4c41" stroke="#3e2723" stroke-width=".8"/><path d="M10 12q3-3 6-3" stroke="#a1887f" stroke-width="1.4" fill="none"/>`+(k==='rock_awash'?'<path d="M2 18q4-3 7 0t7 0 7 0 7 0" stroke="#e3f2fd" stroke-width="2" fill="none"/>':'<path d="M2 15q4-3 7 0t7 0 7 0 7 0v6H2z" fill="#0277bd" opacity=".55"/>'));
+  if(k==='wreck')return W(36,26,'<path d="M4 15l4 6h18l5-9-8 3z" fill="#6d4c41" stroke="#3e2723" stroke-width=".8" transform="rotate(-12 18 15)"/><path d="M15 14V4" stroke="#4e342e" stroke-width="1.6" transform="rotate(-25 15 14)"/><path d="M2 20q4-3 8 0t8 0 8 0 8 0v5H2z" fill="#0277bd" opacity=".6"/>');
+  if(k==='danger')return W(30,30,'<path d="M15 3l12 21H3z" fill="#ffb300" stroke="#e65100" stroke-width="1.4" stroke-linejoin="round"/><path d="M15 10v7" stroke="#3e2723" stroke-width="2.4" stroke-linecap="round"/><circle cx="15" cy="20.5" r="1.4" fill="#3e2723"/>');
+  const sh=k.startsWith('card_')||k==='isolated'?'pillar':SHAPE[k]||'pillar';const b=bandsOf(k);
+  const clip={can:'M13 38V21h14v17z',cone:'M12 38l8-18 8 18z',sphere:'M12 37a8 8 0 1 1 16 0z',pillar:'M13 38l3-19h8l3 19z'}[sh];
+  const hh=19,top=19,bh=hh/b.length;const strips=b.map((c,i)=>`<rect x="8" y="${top+i*bh}" width="24" height="${bh+.2}" fill="${c}"/>`).join('');
+  const tm=topmarkFor(k,20,k.startsWith('card_')?6:9,6,'#263238');
+  return W(40,46,`<linearGradient id="sh" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset=".4" stop-color="#fff" stop-opacity=".35"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient>`+
+    `<path d="M20 19v-4" stroke="#37474f" stroke-width="1.6"/><clipPath id="bc"><path d="${clip}"/></clipPath><g clip-path="url(#bc)">${strips}<rect x="8" y="15" width="24" height="25" fill="url(#sh)"/></g><path d="${clip}" fill="none" stroke="#263238" stroke-width=".8"/>${sea}${tm}`)}
+// ---------------- E: antique engraved (Old chart) ----------------
+const INK='#4a3018',VER='#9b3b26',VERD='#3f6f5f',OCH='#b8862b';
+function E(k){const hatch=(id,c)=>`<pattern id="${id}" width="2.4" height="2.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.4" height="2.4" fill="${c}" opacity=".35"/><path d="M0 0v2.4" stroke="${c}" stroke-width="1"/></pattern>`;
+  if(k==='light_major')return W(44,48,`${hatch('h','#6b4a2b')}<g stroke="${OCH}" stroke-width="1" opacity=".9">${[...Array(12)].map((_,i)=>{const a=i*30*Math.PI/180;return `<path d="M${22+Math.cos(a)*7} ${12+Math.sin(a)*7}L${22+Math.cos(a)*(i%2?11:15)} ${12+Math.sin(a)*(i%2?11:15)}"/>`}).join('')}</g>`+
+    `<path d="M16 44l3-26h6l3 26z" fill="url(#h)" stroke="${INK}" stroke-width="1.1"/><path d="M18 9h8v7h-8z" fill="#efe4cb" stroke="${INK}"/><path d="M17 9l5-4 5 4z" fill="${VER}" stroke="${INK}" stroke-width=".8"/><path d="M16.5 18h11" stroke="${INK}" stroke-width="1.6"/><path d="M11 45h22" stroke="${INK}" stroke-width="1.4"/>`);
+  if(k==='light')return W(28,30,`<g stroke="${OCH}" stroke-width=".9">${[...Array(8)].map((_,i)=>{const a=i*45*Math.PI/180;return `<path d="M${14+Math.cos(a)*4} ${12+Math.sin(a)*4}L${14+Math.cos(a)*9} ${12+Math.sin(a)*9}"/>`}).join('')}</g><circle cx="14" cy="12" r="2.6" fill="${OCH}" stroke="${INK}"/><path d="M14 15v11M10 26h8" stroke="${INK}" stroke-width="1.2"/>`);
+  if(k==='beacon')return W(22,30,`<path d="M11 27V8M7 27h8" stroke="${INK}" stroke-width="1.4"/><path d="M8 6h6l-3 4z" fill="${INK}"/>`);
+  if(k==='rock')return W(22,22,`<path d="M5 11h12M11 5v12" stroke="${INK}" stroke-width="1.5"/><circle cx="11" cy="11" r="1.4" fill="${INK}"/>`);
+  if(k==='rock_awash')return W(22,22,`<path d="M5 11h12M11 5v12M7 7l8 8M15 7l-8 8" stroke="${INK}" stroke-width="1.2"/>`);
+  if(k==='wreck')return W(32,22,`<path d="M4 11h24M10 6v10M16 4v14M22 6v10" stroke="${INK}" stroke-width="1.4" stroke-linecap="round"/>`);
+  if(k==='danger')return W(30,30,`<circle cx="15" cy="15" r="11" fill="none" stroke="${INK}" stroke-width="1" stroke-dasharray="1.5 2"/><text x="15" y="18" font-family="Georgia,serif" font-style="italic" font-size="7.5" text-anchor="middle" fill="${INK}">Obstn</text>`);
+  const map={[R]:VER,[G]:VERD,[Y]:OCH,[K]:INK,[Wh]:'#efe4cb'};const b=bandsOf(k).map(c=>map[c]);
+  const sh=k.startsWith('card_')||k==='isolated'?'pillar':SHAPE[k]||'pillar';const base=34;
+  const pats=b.map((c,i)=>hatch('p'+i,c)).join('');
+  const clip={can:`M14 ${base}v-13h12v13z`,cone:`M13 ${base}l7-15 7 15z`,sphere:`M13 ${base-1}a7 7 0 1 1 14 0z`,pillar:`M14 ${base}l2.5-18h7l2.5 18z`}[sh];
+  const top=base-20,bh=20/b.length;const strips=b.map((c,i)=>`<rect x="10" y="${top+i*bh}" width="20" height="${bh+.2}" fill="${c==='#efe4cb'?'#efe4cb':'url(#p'+i+')'}"/>`).join('');
+  const tm=topmarkFor(k,20,k.startsWith('card_')?8:6,6,INK,{r:VER,g:VERD,k:INK,y:OCH});
+  return W(40,42,`${pats}<clipPath id="ec"><path d="${clip}"/></clipPath><g clip-path="url(#ec)">${strips}</g><path d="${clip}" fill="none" stroke="${INK}" stroke-width="1.1"/><path d="M11 ${base+1}q3-2 6 0t6 0 6 0" stroke="${INK}" stroke-width=".9" fill="none"/>${tm}`)}
+const SETS={A,B,C,D,E};
+const SET_INFO={A:'Modern flat — round badges (Navily/Apple-like)',B:'IALA / INT-1 paper chart — magenta light flares, true buoy shapes & topmarks',C:'Minimal outline — thin coloured line icons with white halo',D:'Illustrated — 3D-ish mini lighthouses and buoys with shading',E:'Antique engraved — sepia ink, hatching, for the Old chart'};
+// light label styles per set
+const LBL={A:{f:['Noto Sans Bold'],c:'#fff7e0',h:'rgba(20,20,20,.85)',s:11},B:{f:['Noto Sans Italic'],c:'#ff7ad9',h:'rgba(0,0,0,.85)',s:11},C:{f:['Noto Sans Regular'],c:'#ffffff',h:'rgba(0,0,0,.8)',s:10.5},D:{f:['Noto Sans Bold'],c:'#ffe082',h:'rgba(30,20,0,.85)',s:11},E:{f:['IM Fell Italic'],c:'#4a3018',h:'#e9dcc0',s:12}};
+// chart-notation light label from OSM tags (expanded seamark:*)
+function lightLabel(t){const CL={white:'W',red:'R',green:'G',yellow:'Y',blue:'Bu',orange:'Or',violet:'Vi',amber:'Am'};
+  const P=[...new Set(Object.keys(t).map(k=>(k.match(/^seamark:light(:\d+)?:/)||[])[0]).filter(Boolean))];
+  const groups=new Map();
+  for(const p of P){const ch=t[p+'character'];if(!ch)continue;const gr=t[p+'group'],pe=t[p+'period'];
+    const key=ch+'|'+(gr||'')+'|'+(pe||'');const g=groups.get(key)||{ch,gr,pe,col:new Set(),rng:[],h:[]};
+    (t[p+'colour']||'').split(';').forEach(c=>c&&g.col.add(CL[c]||c));if(t[p+'range'])g.rng.push(+t[p+'range']);if(t[p+'height'])g.h.push(+t[p+'height']);groups.set(key,g)}
+  const order=['W','R','G','Y','Bu','Or','Vi','Am'];
+  return [...groups.values()].map(g=>{const cols=[...g.col].sort((a,b)=>order.indexOf(a)-order.indexOf(b)).join('');
+    const rs=[...new Set(g.rng.sort((a,b)=>b-a))];
+    return [g.ch+(g.gr?`(${g.gr})`:''),cols,g.pe?g.pe+'s':'',g.h.length?Math.max(...g.h)+'m':'',rs.length?rs.join('/')+'M':''].filter(Boolean).join(' ')}).join(' · ')}
+// fixed classifier (category first, multi-colour aware)
+function classify2(t){const st=t['seamark:type']||'';
+  if(st==='light_major')return'light_major';if(st==='light_minor')return'light';if(st==='wreck')return'wreck';
+  if(st==='rock'){const wl=t['seamark:rock:water_level']||'';return /awash|covers|dry/.test(wl)?'rock_awash':'rock'}
+  if(st==='obstruction')return'danger';
+  const m=st.match(/^(buoy|beacon)_(.*)$/);if(!m)return null;const kind=m[2],cat=t[`seamark:${st}:category`]||'',col=(t[`seamark:${st}:colour`]||'').split(';').filter(c=>c!=='white'||kind!=='lateral');
+  if(kind==='lateral'){const both=col.includes('red')&&col.includes('green');if(both&&/preferred_channel_port/.test(cat))return'lat_greenred';if(both&&/preferred_channel_starboard/.test(cat))return'lat_redgreen';
+    if(/starboard|right/.test(cat))return'lat_green';if(/port|left/.test(cat))return'lat_red';
+    if(col.includes('green')&&!col.includes('red'))return'lat_green';if(col.includes('red')&&!col.includes('green'))return'lat_red';return'beacon'}
+  if(kind==='cardinal')return['north','south','east','west'].includes(cat)?'card_'+cat:'beacon';
+  if(kind==='isolated_danger')return'isolated';if(kind==='safe_water')return'safe';if(kind==='special_purpose')return'special';return'beacon'}
+
+
+return{E,KEYS,lightLabel,classify2}})();
+for(const k of SE.KEYS)ICONS[k]=SE.E(k);
 // iOS Safari: SVG data-URL images with <filter> rendered to canvas silently fail/taint (getImageData throws) and the
 // old code swallowed the error, so no icon was ever registered. Now: filter-free SVG with explicit size, decode(),
 // shadow drawn by canvas, HTMLImageElement fallback, and a 'styleimagemissing' safety net.
 function addIcon(k,img){const r=2,w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
   try{const c=document.createElement('canvas');c.width=w*r;c.height=h*r;const x=c.getContext('2d');
-    x.shadowColor='rgba(0,0,0,.5)';x.shadowBlur=3*r;x.shadowOffsetY=1.2*r;x.drawImage(img,0,0,c.width,c.height);
+    x.shadowColor='rgba(239,228,203,.95)';x.shadowBlur=4*r;x.shadowOffsetY=0;for(let i=0;i<6;i++)x.drawImage(img,0,0,c.width,c.height);
+    x.shadowColor='transparent';x.drawImage(img,0,0,c.width,c.height);
     const d=x.getImageData(0,0,c.width,c.height);if(!map.hasImage(k))map.addImage(k,{width:c.width,height:c.height,data:new Uint8Array(d.data.buffer)},{pixelRatio:r});return true}
   catch(e){console.warn('icon canvas failed',k,e)}
   try{if(!map.hasImage(k))map.addImage(k,img);return true}catch(e){console.warn('icon add failed',k,e);return false}}
@@ -363,6 +517,8 @@ function classify(t){
   if(st==='harbour')return['harbour',TYPE_BG.harbour,4];
   if(st==='anchorage')return['anchorage',TYPE_BG.anchorage,4];
   if(st==='mooring')return['mooring',TYPE_BG.mooring,1];
+  {const ic=SE.classify2(t);if(ic){const pr={light_major:9,light:6,isolated:8,card_north:8,card_south:8,card_east:8,card_west:8,lat_red:7,lat_green:7,lat_redgreen:7,lat_greenred:7,safe:7,special:5,beacon:4,rock:3,rock_awash:3,wreck:3,danger:3}[ic]||4;
+    return[ic,TYPE_BG[st]||'Seamark',pr]}}
   if(st==='light_major')return['light_major',TYPE_BG.light_major,9];
   if(st==='light_minor')return['light',TYPE_BG.light_minor,6];
   if(st==='wreck')return['wreck',TYPE_BG.wreck,3];
@@ -393,7 +549,7 @@ function toFeature(e){
   const t=e.tags||{};const c=classify(t);if(!c)return null;
   const lon=e.lon!=null?e.lon:e.center&&e.center.lon,lat=e.lat!=null?e.lat:e.center&&e.center.lat;if(lon==null)return null;
   const id=e.type+e.id;markById.set(id,t);
-  return{type:'Feature',id:undefined,geometry:{type:'Point',coordinates:[lon,lat]},properties:{id,icon:c[0],kind:c[1],prio:-c[2]}};
+  return{type:'Feature',id:undefined,geometry:{type:'Point',coordinates:[lon,lat]},properties:{id,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):''}};
 }
 function refreshMarks(){const feats=staticFeats?staticFeats.slice():[],seen=new Set();for(const fs of cellCache.values())for(const f of fs){if(!seen.has(f.properties.id)){seen.add(f.properties.id);feats.push(f)}}
   map.getSource('marks').setData({type:'FeatureCollection',features:feats})}
@@ -424,7 +580,7 @@ async function loadStatic(){if(staticState!=='idle')return;staticState='loading'
       if(!r.ok)throw new Error('HTTP '+r.status+(r.status===401||r.status===403?' (site login/access)':''));
       const txt=await r.text();let d;try{d=JSON.parse(txt)}catch(_){throw new Error('bad data ('+(r.headers.get('content-type')||'?')+'): '+txt.slice(0,40))}
       staticFeats=[];for(const f of d.features){const p=f.properties,t={};for(const k in p)if(k!=='id')t[k[0]==='~'?'seamark:'+k.slice(1):k]=p[k];
-        const c=classify(t);if(!c)continue;markById.set(p.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:p.id,icon:c[0],kind:c[1],prio:-c[2]}})}
+        const c=classify(t);if(!c)continue;markById.set(p.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:p.id,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):''}})}
       staticState='ready';refreshMarks();setTimeout(()=>loadMarks(true),300);return}
     catch(e){lastErr=e&&e.message||String(e);console.warn('static seamarks',e);setStatus('Seamarks failed: '+lastErr+' – retrying…');await new Promise(r=>setTimeout(r,1500))}}
   staticState='failed';setStatus('Seamarks failed: '+lastErr)}
