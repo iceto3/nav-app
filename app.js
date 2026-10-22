@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v17';
+const APP_VERSION='v18';
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -95,7 +95,7 @@ map.touchZoomRotate.enableRotation();
 // ---------- old chart theme ----------
 const LBL_ORIG={};
 function setOldTheme(on){
-  document.body.classList.toggle('oldchart',on);
+  document.body.classList.toggle('oldchart',on);if(typeof drawScale==='function')drawScale();
   for(const id of ['lblWater','lblIsland','lblPlace']){
     if(!LBL_ORIG[id])LBL_ORIG[id]={font:map.getLayoutProperty(id,'text-font'),color:map.getPaintProperty(id,'text-color'),hc:map.getPaintProperty(id,'text-halo-color'),hw:map.getPaintProperty(id,'text-halo-width'),hb:map.getPaintProperty(id,'text-halo-blur')};
     const o=LBL_ORIG[id],w=id==='lblWater';
@@ -127,6 +127,19 @@ function nfnNote(on){let n=document.getElementById('nfn');if(!n){n=document.crea
  document.body.appendChild(z);const t=z.querySelector('#zoomTxt'),sl=z.querySelector('#zoomSl');
  const upd=()=>{const v=map.getZoom();t.textContent='Z '+v.toFixed(1);if(document.activeElement!==sl)sl.value=v};
  sl.oninput=()=>map.jumpTo({zoom:+sl.value});map.on('zoom',upd);upd()}
+// ---------- scale bar: metric + NM (modern) / checkered (Old chart) ----------
+const drawScale=(()=>{const b=document.createElement('div');b.id='scaleBar';document.body.appendChild(b);
+  const M=[5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,100000],NM=[0.02,0.05,0.1,0.2,0.5,1,2,5,10,20,50];
+  const pick=(a,u,mx)=>{const p=156543.03392*Math.cos(map.getCenter().lat*Math.PI/180)/Math.pow(2,map.getZoom());let v=a[0];for(const x of a)if(x*u/p<=mx)v=x;return[v,v*u/p]};
+  const fm=m=>m>=1000?(m/1000)+' km':m+' m',pos='position:fixed;z-index:2300;left:10px;bottom:calc(env(safe-area-inset-bottom) + 92px);pointer-events:none;';
+  const lift=()=>{const a=document.querySelector('.maplibregl-ctrl-attrib');if(a)b.style.bottom=(innerHeight-a.getBoundingClientRect().top+8)+'px'};
+  return()=>{const old=document.body.classList.contains('oldchart'),[m,w]=pick(M,1,old?130:110),[n,wn]=pick(NM,1852,old?130:110);
+    if(old){const seg=W=>Array.from({length:5},(_,i)=>`<div style="width:${W/5}px;height:5px;background:${i%2?'#efe4cb':'#2b1a0c'};border:.8px solid #4a3018;box-sizing:border-box"></div>`).join('');
+      b.style.cssText=pos+'background:rgba(233,220,192,.9);border:1px solid #6b4a2b;padding:3px 7px 5px;font:italic 11px Georgia,serif;color:#4a3018';
+      b.innerHTML=`<div style="text-align:center">Scale of Metres · ${fm(m)}</div><div style="display:flex">${seg(w)}</div><div style="display:flex;margin-top:2px">${seg(wn)}</div><div style="text-align:center">${n} Nautical Miles</div>`}
+    else{b.style.cssText=pos+'background:rgba(255,255,255,.82);border-radius:6px;padding:3px 6px 4px;font:600 10px system-ui,sans-serif;color:#222';
+      b.innerHTML=`<div>${fm(m)}</div><div style="width:${w}px;height:4px;border:1.5px solid #222;border-top:none"></div><div style="width:${wn}px;height:4px;border:1.5px solid #1a4f8a;border-bottom:none;margin-top:1px"></div><div style="color:#1a4f8a">${n} NM</div>`}lift()}})();
+map.on('move',drawScale);drawScale();
 // ---------- layer switcher ----------
 (function(){
   const box=document.createElement('div');box.id='layers';
