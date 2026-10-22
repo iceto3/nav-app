@@ -5,7 +5,7 @@ if(qs.get('dev')==='1')localStorage.setItem('navDev','1');if(qs.get('dev')==='0'
 if(localStorage.getItem('navDev')!=='1')return;
 const KEY='navDevState',$=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
 let S=JSON.parse(localStorage.getItem(KEY)||'null')||{lines:[],moves:{},overlay:null};S.dels=S.dels||{};S.adds=S.adds||{};
-let picked=false,lastDrag=0,undo=[],redo=[],mode='view',active=null,selV=null,shoreType='natural',depthVal=1,drag=null;
+let snapPrev=null,picked=false,lastDrag=0,undo=[],redo=[],mode='view',active=null,selV=null,shoreType='natural',depthVal=1,drag=null;
 const snap=()=>JSON.stringify(S);
 function commit(prev){undo.push(prev);if(undo.length>100)undo.shift();redo=[];save();render()}
 function save(){localStorage.setItem(KEY,snap())}
@@ -56,9 +56,10 @@ function sub(){const s=root.querySelector('.sub');s.innerHTML='';
       const setD=v=>{if(!(+v>0))return;depthVal=+v;const L=cur();if(L&&(L.pts.length<2||picked)){const p=snap();L.depth=depthVal;commit(p)}else{active=null;selV=null;render()}};
       sel.onchange=()=>{if(sel.value==='x'){inp.hidden=false;inp.focus()}else{inp.hidden=true;setD(sel.value)}};inp.onchange=()=>setD(inp.value);s.append(sel,inp)}
     btn(s,'New',()=>{active=null;selV=null;render()});
-    btn(s,'Finish',()=>{active=null;selV=null;render()});
+    btn(s,'Finish',()=>{const L=cur();if(L&&L.kind==='shore'){const p=snap();L.finished=true;buildLand(L);active=null;selV=null;commit(p);if(L.sn&&L.sn[0]==='c'&&L.sn[L.pts.length-1]==='c'&&!L.land)console.warn('land: no coast path');sub();return}active=null;selV=null;render()});
+    {const L=cur();if(mode==='shore'&&L&&selV!=null&&L.sn&&L.sn[selV])btn(s,'Unsnap',()=>{const p=snap();L.sn[selV]=0;if(L.land)buildLand(L);commit(p);sub()})}
     btn(s,'Close',()=>{const L=cur();if(L&&L.pts.length>2){const p=snap();L.closed=true;active=null;commit(p)}});
-    btn(s,'Del vertex',()=>{const L=cur();if(L&&selV!=null){const p=snap();L.pts.splice(selV,1);selV=null;if(L.pts.length<2)L.closed=false;if(!L.pts.length){S.lines=S.lines.filter(x=>x!==L);active=null}commit(p)}});
+    btn(s,'Del vertex',()=>{const L=cur();if(L&&selV!=null){const p=snap();L.pts.splice(selV,1);if(L.sn)L.sn.splice(selV,1);if(L.land)buildLand(L);selV=null;if(L.pts.length<2)L.closed=false;if(!L.pts.length){S.lines=S.lines.filter(x=>x!==L);active=null}commit(p)}});
   }
   if(mode==='add'){s.style.flexWrap='nowrap';s.style.overflowX='auto';for(const[k,l]of ADD_TYPES){const b=btn(s,'',()=>{addType=k;sub()},addType===k);b.title=l;b.style.padding='3px';b.style.flex='0 0 auto';const u=iconURL(k==='chandlery'?'shop':['marina','harbour','anchorage','fuel','fuel_truck'].includes(k)?k:'p_'+k);
       if(u){const im=document.createElement('img');im.src=u;im.style.cssText='width:28px;height:28px;object-fit:contain;display:block';b.appendChild(im)}else b.textContent=l}
@@ -94,11 +95,13 @@ const bundled=id=>window.BUNDLED_EDIT_IDS&&window.BUNDLED_EDIT_IDS.has(id);
 const isOld=()=>typeof OLD_ON!=='undefined'&&OLD_ON;
 function fc(){const F=[];for(const L of S.lines){if(bundled(L.id))continue;if(L.kind==='shore'&&!isOld())continue;const c=L.closed&&L.pts.length>2?L.pts.concat([L.pts[0]]):L.pts,col=L.kind==='depth'?COL.depth:COL[L.type];
     const poly=L.kind==='shore'&&L.closed&&L.pts.length>2,pr=L.kind==='depth'?{edit:'depth_contour',type:'contour',depth:L.depth}:{edit:'shore',type:L.type};
+    if(L.land&&L.kind==='shore')F.push({type:'Feature',geometry:{type:'Polygon',coordinates:[L.land]},properties:{edit:'shore',type:'land'}});
     if(c.length>1)F.push({type:'Feature',geometry:poly?{type:'Polygon',coordinates:[c]}:{type:'LineString',coordinates:c},properties:pr});
     if(c.length>1&&L.id===active)F.push({type:'Feature',geometry:{type:'LineString',coordinates:c},properties:{act:1,col}});
     const showV=(mode==='shore'&&L.kind==='shore')||(mode==='depth'&&L.kind==='depth');
-    if(showV){L.pts.forEach((p,i)=>F.push({type:'Feature',geometry:{type:'Point',coordinates:p},properties:{v:1,lid:L.id,i,sel:L.id===active&&i===selV?1:0,col}}));
+    if(showV){L.pts.forEach((p,i)=>F.push({type:'Feature',geometry:{type:'Point',coordinates:p},properties:{v:1,lid:L.id,i,sel:L.id===active&&i===selV?1:0,col,sn:(L.sn&&L.sn[i])?1:0}}));
       for(let i=0;i<c.length-1;i++)F.push({type:'Feature',geometry:{type:'Point',coordinates:[(c[i][0]+c[i+1][0])/2,(c[i][1]+c[i+1][1])/2]},properties:{m:1,lid:L.id,i:i+1}})}}
+  if(snapPrev)F.push({type:'Feature',geometry:{type:'Point',coordinates:snapPrev},properties:{snp:1}});
   if(drag&&drag.ghost)F.push({type:'Feature',geometry:{type:'Point',coordinates:drag.ghost},properties:{g:1}});
   return{type:'FeatureCollection',features:F}}
 function render(){const s=map.getSource('dev');if(s)s.setData(fc());liveMask()}
@@ -118,8 +121,44 @@ function addLayers(){if(map.getSource('dev'))return;map.addSource('dev',{type:'g
   for(const l of ueContLayers('dv','dev','visible'))map.addLayer(l,'ucont');ueTheme('dv');
   map.addLayer({id:'devLine',type:'line',source:'dev',filter:['==',['get','act'],1],paint:{'line-color':'#ff6d00','line-width':1,'line-opacity':.9,'line-dasharray':[2,2]}});
   map.addLayer({id:'devMid',type:'circle',source:'dev',filter:['has','m'],paint:{'circle-radius':5,'circle-color':'#ffffff','circle-opacity':.55,'circle-stroke-color':'#000','circle-stroke-width':1}});
-  map.addLayer({id:'devVtx',type:'circle',source:'dev',filter:['has','v'],paint:{'circle-radius':['case',['==',['get','sel'],1],10,8],'circle-color':['get','col'],'circle-stroke-color':['case',['==',['get','sel'],1],'#fff','#000'],'circle-stroke-width':2}});
+  map.addLayer({id:'devVtx',type:'circle',source:'dev',filter:['has','v'],paint:{'circle-radius':['case',['==',['get','sel'],1],10,8],'circle-color':['get','col'],'circle-stroke-color':['case',['==',['get','sn'],1],'#00e676',['==',['get','sel'],1],'#fff','#000'],'circle-stroke-width':['case',['==',['get','sn'],1],4,2]}});
+  map.addLayer({id:'devSnap',type:'circle',source:'dev',filter:['has','snp'],paint:{'circle-radius':13,'circle-color':'rgba(0,0,0,0)','circle-stroke-color':'#00e676','circle-stroke-width':3}});
   map.addLayer({id:'devGhost',type:'circle',source:'dev',filter:['has','g'],paint:{'circle-radius':14,'circle-color':'#e65100','circle-opacity':.5,'circle-stroke-color':'#fff','circle-stroke-width':2}})}
+// ---------- v30 snapping (always on) ----------
+const SNAP_PX=18,UNSNAP_PX=30;
+function snapSegs(exclL){const S2=[],V=[];const add=(c,kind)=>{for(let i=0;i<c.length-1;i++)S2.push([c[i],c[i+1],kind])};
+  try{for(const f of map.querySourceFeatures('coast',{sourceLayer:'coast'})){const g=f.geometry;if(g.type==='LineString')add(g.coordinates,'c');else if(g.type==='MultiLineString')g.coordinates.forEach(c=>add(c,'c'))}}catch(e){}
+  try{const d=window.UE_DATA;for(const f of(d&&d.features)||[]){const p=f.properties||{};if(p.edit!=='shore'||!isOld())continue;const g=f.geometry;
+    if(g.type==='Polygon'){add(g.coordinates[0],'c');g.coordinates[0].forEach(c=>V.push([c,'c']))}else if(g.type==='LineString'){const k=p.type==='natural'?'c':'v';if(k==='c')add(g.coordinates,'c');g.coordinates.forEach(c=>V.push([c,k]))}}}catch(e){}
+  for(const L of S.lines){if(L.kind!=='shore'||bundled(L.id))continue;if(L.land)add(L.land,'c');if(L!==exclL){const k=L.type==='natural'?'c':'v';L.pts.forEach(c=>V.push([c,k]));if(k==='c')add(L.pts,'c')}}
+  if(exclL)exclL.pts.forEach((c,i)=>{if(exclL.__skip!==i)V.push([c,'v'])});
+  return{S2,V}}
+// returns {c,k:'c'|'v'} nearest within px of screen point p
+function snapAt(p,exclL,px){px=px||SNAP_PX;const{S2,V}=snapSegs(exclL);let best=null,bd=px;
+  for(const[c,k]of V){const q=map.project(c),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<bd){bd=d;best={c:c.slice(),k}}}
+  if(best)return best;
+  for(const[a,b,k]of S2){const A=map.project(a),B=map.project(b),dx=B.x-A.x,dy=B.y-A.y,l=dx*dx+dy*dy;let t=l?((p.x-A.x)*dx+(p.y-A.y)*dy)/l:0;t=Math.max(0,Math.min(1,t));
+    const x=A.x+t*dx,y=A.y+t*dy,d=Math.hypot(x-p.x,y-p.y);if(d<bd){bd=d;best={c:[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])],k}}}
+  return best}
+// coastline graph shortest path between two snapped points -> coords
+function coastPath(A,B,exclL){const{S2}=snapSegs(exclL);const key=c=>c[0].toFixed(6)+','+c[1].toFixed(6),N=new Map(),C=[],adj=[];
+  const node=c=>{const k=key(c);let i=N.get(k);if(i==null){i=C.length;N.set(k,i);C.push(c);adj.push([])}return i};
+  const kx=111320*Math.cos(A[1]*Math.PI/180),ky=110540,dist=(a,b)=>Math.hypot((a[0]-b[0])*kx,(a[1]-b[1])*ky);
+  const E=[];for(const[a,b,k]of S2){if(k!=='c')continue;const i=node(a),j=node(b);if(i===j)continue;adj[i].push([j,dist(a,b)]);adj[j].push([i,dist(a,b)]);E.push([i,j])}
+  // fuse nodes closer than 0.3 m (tile seams)
+  const near=(c)=>{let bi=-1,bd=1e9;for(const[i,j]of E){const a=C[i],b=C[j],dx=(b[0]-a[0])*kx,dy=(b[1]-a[1])*ky,l=dx*dx+dy*dy;let t=l?(((c[0]-a[0])*kx)*dx+((c[1]-a[1])*ky)*dy)/l:0;t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot((a[0]-c[0])*kx+t*dx,(a[1]-c[1])*ky+t*dy);if(d<bd){bd=d;bi=[i,j]}}return bd<3?bi:null};
+  const ins=c=>{const e=near(c);if(!e)return-1;const i=C.length;C.push(c);adj.push([]);for(const j of e){const d=dist(c,C[j]);adj[i].push([j,d]);adj[j].push([i,d])}return i};
+  const ea=near(A),eb=near(B),ia=ins(A),ib=ins(B);if(ia<0||ib<0)return null;
+  if(ea&&eb&&ea[0]===eb[0]&&ea[1]===eb[1]){const d=dist(A,B);adj[ia].push([ib,d]);adj[ib].push([ia,d])}
+  const n=C.length;for(let i=0;i<n;i++)if(!adj[i].length)continue;
+  const D=new Float64Array(n).fill(Infinity),P=new Int32Array(n).fill(-1),done=new Uint8Array(n);D[ib]=0;
+  for(;;){let u=-1,m=Infinity;for(let i=0;i<n;i++)if(!done[i]&&D[i]<m){m=D[i];u=i}if(u<0||u===ia)break;done[u]=1;for(const[v,w]of adj[u])if(D[u]+w<D[v]){D[v]=D[u]+w;P[v]=u}}
+  if(!isFinite(D[ia]))return null;const out=[];for(let u=P[ia];u>=0&&u!==ib;u=P[u])out.push(C[u]);return out} // interior path A->B order
+function buildLand(L){L.land=null;if(L.kind!=='shore'||L.closed||L.pts.length<2)return;const sn=L.sn||[];if(sn[0]!=='c'||sn[L.pts.length-1]!=='c')return;
+  const A=L.pts[0],B=L.pts[L.pts.length-1],path=coastPath(A,B,L);if(!path)return;
+  // polygon: drawn A..B then coast B..A
+  const ring=L.pts.concat(path.slice().reverse(),[A]);if(ring.length<4)return;L.land=ring}
 // ---------- marks overrides ----------
 function patchMarks(){const src=map.getSource('marks');if(!src||src.__devPatched)return;const orig=src.setData.bind(src);src.__devPatched=true;
   src.setData=d=>{try{if(d&&d.features){const dl=S.dels,ad=Object.keys(S.adds).filter(id=>!bundled(id));if(Object.keys(dl).length)d={type:'FeatureCollection',features:d.features.filter(f=>!dl[f.properties.id])};if(ad.length)d={type:'FeatureCollection',features:d.features.filter(f=>!S.adds[f.properties.id]).concat(ad.map(id=>addFeat(id,S.adds[id])).filter(Boolean))}}
@@ -139,19 +178,23 @@ function bind(){
     if(f&&S.adds[f.properties.id]){openForm(f.properties.id);return}
     const p=snap(),id='u'+uid();S.adds[id]={type:addType,coords:pt(e),name:'',desc:''};commit(p);refreshMarksSafe();openForm(id)});
   map.on('click',e=>{if(mode!=='shore'&&mode!=='depth')return;if(mode==='shore'&&!isOld())return;if(drag&&drag.moved||Date.now()-lastDrag<350)return;
-    const v=hit(e,['devVtx'])[0];if(v){active=v.properties.lid;selV=v.properties.i;picked=true;sub();render();return}
-    const m=hit(e,['devMid'])[0];if(m){const L=S.lines.find(l=>l.id===m.properties.lid);if(L){const p=snap();L.pts.splice(m.properties.i,0,pt(e));active=L.id;selV=m.properties.i;commit(p)}return}
+    const v=hit(e,['devVtx'])[0],AL=cur();if(v&&!(mode==='shore'&&AL&&AL.kind==='shore'&&AL.pts.length&&v.properties.lid!==AL.id)){active=v.properties.lid;selV=v.properties.i;picked=true;sub();render();return}
+    const m=hit(e,['devMid'])[0];if(m){const L=S.lines.find(l=>l.id===m.properties.lid);if(L){const p=snap();L.pts.splice(m.properties.i,0,pt(e));if(L.sn)L.sn.splice(m.properties.i,0,0);if(L.land)buildLand(L);active=L.id;selV=m.properties.i;commit(p)}return}
     const p=snap();let L=cur();if(!L||(mode==='depth')!==(L.kind==='depth')){L={id:uid(),kind:mode==='depth'?'depth':'shore',type:mode==='depth'?'contour':shoreType,depth:mode==='depth'?depthVal:null,pts:[],closed:false};S.lines.push(L);active=L.id}
-    L.pts.push(pt(e));selV=L.pts.length-1;picked=false;commit(p)});
+    let c=pt(e),k=0;if(mode==='shore'){const sp=snapAt(e.point,L);if(sp){c=sp.c;k=sp.k}}
+    L.pts.push(c);L.sn=L.sn||[];L.sn[L.pts.length-1]=k;selV=L.pts.length-1;picked=false;if(L.land)buildLand(L);commit(p)});
   const vStart=e=>{if(mode!=='shore'&&mode!=='depth')return;const v=hit(e,['devVtx'])[0];if(!v)return;const L=S.lines.find(l=>l.id===v.properties.lid);if(!L)return;
     if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)return;
-    lockPan();drag={kind:'v',L,i:v.properties.i,prev:snap(),moved:false};active=L.id;selV=v.properties.i};
+    lockPan();drag={kind:'v',L,i:v.properties.i,prev:snap(),moved:false,sc:L.sn&&L.sn[v.properties.i]?L.pts[v.properties.i]:null};active=L.id;selV=v.properties.i};
   map.on('mousedown',vStart);map.on('touchstart',vStart);
-  const mv=e=>{if(!drag)return;if(drag.kind==='v'){drag.L.pts[drag.i]=pt(e);drag.moved=true;render()}
+  const mv=e=>{if(!drag){if(mode==='shore'&&isOld()&&e.originalEvent&&e.originalEvent.type==='mousemove'){const sp=snapAt(e.point,cur());const n=sp?sp.c:null;if(String(n)!==String(snapPrev)){snapPrev=n;render()}}return}
+    if(drag.kind==='v'){const L=drag.L;L.sn=L.sn||[];let c=pt(e),k=0;if(L.kind==='shore'){L.__skip=drag.i;const held=L.sn[drag.i]&&drag.sc&&Math.hypot(map.project(drag.sc).x-e.point.x,map.project(drag.sc).y-e.point.y)<UNSNAP_PX;
+      const sp=held?{c:drag.sc,k:L.sn[drag.i]}:snapAt(e.point,L);delete L.__skip;if(sp&&!held&&sp)drag.sc=sp.c;if(sp){c=sp.c;k=sp.k}snapPrev=sp?sp.c:null}
+      L.pts[drag.i]=c;L.sn[drag.i]=k;drag.moved=true;render()}
     else if(drag.kind==='lp'){if(!drag.armed){const dx=e.point.x-drag.p0.x,dy=e.point.y-drag.p0.y;if(dx*dx+dy*dy>100){clearTimeout(drag.t);drag=null}}else{drag.ghost=pt(e);drag.moved=true;render()}}};
   map.on('mousemove',mv);map.on('touchmove',mv);
   const end=e=>{if(!drag)return;const d=drag;drag=null;if(d.moved)lastDrag=Date.now();unlockPan();
-    if(d.kind==='v'&&d.moved)commit(d.prev);
+    if(d.kind==='v'){snapPrev=null;if(d.moved){if(d.L.land||(d.L.sn&&d.L.sn[0]==='c'&&d.L.sn[d.L.pts.length-1]==='c'&&d.L.finished))buildLand(d.L);commit(d.prev)}}
     if(d.kind==='lp'){clearTimeout(d.t);if(d.armed&&d.moved&&d.ghost&&S.adds[d.id]){const p=snap();S.adds[d.id].coords=d.ghost;commit(p);refreshMarksSafe()}else if(d.armed&&d.moved&&d.ghost){const p=snap();const o=S.moves[d.id];S.moves[d.id]={from:o?o.from:d.from,to:d.ghost,icon:d.icon};commit(p);refreshMarksSafe()}}
     render()};
   map.on('mouseup',end);map.on('touchend',end);
@@ -193,7 +236,8 @@ cap.addEventListener('wheel',e=>{e.preventDefault();if(S.overlay){S.overlay.w*=e
 function gs(T){const r=cap.getBoundingClientRect(),P=[...T].map(t=>[t.clientX-r.left,t.clientY-r.top]);const n=P.length;const c=[P.reduce((s,p)=>s+p[0],0)/n,P.reduce((s,p)=>s+p[1],0)/n];
   return n>1?{n,c,d:Math.hypot(P[1][0]-P[0][0],P[1][1]-P[0][1]),a:Math.atan2(P[1][1]-P[0][1],P[1][0]-P[0][0])}:{n,c}}
 // ---------- export / import ----------
-function exportFC(){const F=S.lines.map(L=>({type:'Feature',geometry:L.closed&&L.pts.length>2?{type:'Polygon',coordinates:[L.pts.concat([L.pts[0]])]}:{type:'LineString',coordinates:L.pts},properties:{edit:L.kind==='depth'?'depth_contour':'shore',type:L.kind==='depth'?'contour':L.type,depth:L.depth,closed:!!L.closed,id:L.id}}));
+function exportFC(){const F=[];for(const L of S.lines)if(L.land){F.push({type:'Feature',geometry:{type:'Polygon',coordinates:[L.land]},properties:{edit:'shore',type:'land',id:L.id,raw:L.pts,sn:L.sn}});F.push({type:'Feature',geometry:{type:'LineString',coordinates:L.pts},properties:{edit:'shore',type:'natural',id:L.id+'_line',landOf:L.id}})}
+  F.push(...S.lines.filter(L=>!L.land).map(L=>({type:'Feature',geometry:L.closed&&L.pts.length>2?{type:'Polygon',coordinates:[L.pts.concat([L.pts[0]])]}:{type:'LineString',coordinates:L.pts},properties:{edit:L.kind==='depth'?'depth_contour':'shore',type:L.kind==='depth'?'contour':L.type,depth:L.depth,closed:!!L.closed,id:L.id,sn:L.sn}})));
   for(const id in S.moves){const m=S.moves[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:m.to},properties:{edit:'move',id,icon:m.icon,from:m.from}})}
   for(const id in S.dels){const x=S.dels[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:x.coords},properties:{edit:'delete',id,icon:x.type}})}
   for(const id in S.adds){const a=S.adds[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:a.coords},properties:Object.assign({edit:'add',id,type:a.type,name:a.name||'',description:a.desc||''},{tags:tagsOf(a)})})}
@@ -205,11 +249,13 @@ async function exportAll(){const txt=JSON.stringify(exportFC(),null,1),name='nav
 function importAll(){const f=document.createElement('input');f.type='file';f.accept='.geojson,.json,application/geo+json,application/json';
   f.onchange=async()=>{try{const d=JSON.parse(await f.files[0].text()),p=snap(),N={lines:[],moves:{},dels:{},adds:{},overlay:S.overlay};
     for(const x of d.features||[]){const q=x.properties||{};if(q.edit==='delete')N.dels[q.id]={type:q.icon,coords:x.geometry.coordinates};else if(q.edit==='add')N.adds[q.id]={type:q.type,coords:x.geometry.coordinates,name:q.name||'',desc:q.description||''};else if(q.edit==='move')N.moves[q.id]={from:q.from,to:x.geometry.coordinates,icon:q.icon};
+      else if(q.edit==='shore'&&q.landOf)continue;
+      else if(q.edit==='shore'&&q.type==='land'&&q.raw){N.lines.push({id:q.id,kind:'shore',type:'natural',pts:q.raw,sn:q.sn||q.raw.map((_,i)=>i===0||i===q.raw.length-1?'c':0),closed:false,finished:true,land:x.geometry.coordinates[0]})}
       else if(q.edit==='shore'||q.edit==='depth_contour'){const poly=x.geometry.type==='Polygon',c=poly?x.geometry.coordinates[0].slice(0,-1):x.geometry.coordinates;
-        N.lines.push({id:q.id||uid(),kind:q.edit==='shore'?'shore':'depth',type:q.edit==='shore'?(q.type||'natural'):'contour',depth:q.depth==null?null:+q.depth,pts:c,closed:poly})}}
+        N.lines.push({id:q.id||uid(),kind:q.edit==='shore'?'shore':'depth',type:q.edit==='shore'?(q.type||'natural'):'contour',depth:q.depth==null?null:+q.depth,pts:c,closed:poly,sn:q.sn})}}
     if(d.overlay&&S.overlay)Object.assign(N.overlay,{center:d.overlay.center,w:d.overlay.w,rot:d.overlay.rot,opacity:d.overlay.opacity});
     S=N;commit(p);refreshMarksSafe();ovFromState();list()}catch(e){alert('Import failed: '+e.message)}};f.click()}
 // ---------- init ----------
-function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.addEventListener('navtheme',()=>{sub();render()});map.on('styleimagemissing',()=>{});window.addEventListener('bundled-edits',()=>{render();refreshMarksSafe();list()});if(window.BUNDLED_EDIT_IDS){render();refreshMarksSafe()}window.__dev={get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
+function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.addEventListener('navtheme',()=>{sub();render()});map.on('styleimagemissing',()=>{});window.addEventListener('bundled-edits',()=>{render();refreshMarksSafe();list()});if(window.BUNDLED_EDIT_IDS){render();refreshMarksSafe()}window.__dev={snapAt,coastPath,buildLand,get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
 if(map.loaded()||map.isStyleLoaded())init();else map.once('load',init);
 })();

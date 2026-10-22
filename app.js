@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v29';
+const APP_VERSION='v30';
 // v19: zoomed-out category dots, palette 3 "High-contrast white/ink" (fill, stroke) – satellite/modern and Old chart
 const DOT_COLS={sat:{anchorage:['#6a2c9e','#FFFFFF'],harb:['#0D47A1','#FFFFFF'],fuel:['#E65100','#FFFFFF'],shop:['#9E9E9E','#FFFFFF']},
   old:{anchorage:['#7a3b5a','#F3E9D2'],harb:['#22324F','#F3E9D2'],fuel:['#D2691E','#F3E9D2'],shop:['#9A9286','#F3E9D2']}};
@@ -18,7 +18,7 @@ const EMOD_ATT='Bathymetry © <a href="https://emodnet.ec.europa.eu/en/bathymetr
 // own vector depth contours (EMODnet DTM 2024, CC-BY 4.0) served as PMTiles via HTTP range requests
 const PMT=new pmtiles.Protocol();maplibregl.addProtocol('pmtiles',PMT.tile);
 const DEPTH_ATT='Bathymetry: <a href="https://emodnet.ec.europa.eu/en/bathymetry">EMODnet</a> (CC-BY 4.0)';
-const pmUrl=f=>'pmtiles://'+new URL('data/'+f+'?v=29',location.href).href;
+const pmUrl=f=>'pmtiles://'+new URL('data/'+f+'?v=30',location.href).href;
 const wms=l=>[`${EMOD}?service=WMS&request=GetMap&version=1.1.1&layers=${l}&styles=&format=image/png&transparent=true&srs=EPSG:3857&width=256&height=256&bbox={bbox-epsg-3857}`];
 const raster=(tiles,att,extra={})=>Object.assign({type:'raster',tiles,tileSize:256,attribution:att},extra);
 const FONT_R=['Noto Sans Regular'],FONT_B=['Noto Sans Bold'],FONT_I=['Noto Sans Italic'];
@@ -32,7 +32,8 @@ const UE_M=m=>['interpolate',['exponential',2],['zoom'],0,m/61014,22,m/61014*419
 const UE_SHORE=['==',['get','edit'],'shore'],UE_LINE=['==',['geometry-type'],'LineString'],UE_POLY=['==',['geometry-type'],'Polygon'];
 function ueShoreLayers(P,src){return[
   {id:P+'land',type:'fill',source:src,filter:['all',UE_SHORE,UE_POLY],paint:{'fill-color':'#e9dcc0'}},
-  {id:P+'landO',type:'line',source:src,filter:['all',UE_SHORE,UE_POLY],layout:{'line-join':'round'},paint:{'line-color':OLD_INK,'line-width':1.3}},
+  {id:P+'landC',type:'line',source:src,filter:['all',UE_SHORE,UE_POLY,['==',['get','type'],'land']],layout:{'line-join':'round'},paint:{'line-color':'#e9dcc0','line-width':3}},
+  {id:P+'landO',type:'line',source:src,filter:['all',UE_SHORE,UE_POLY,['!=',['get','type'],'land']],layout:{'line-join':'round'},paint:{'line-color':OLD_INK,'line-width':1.3}},
   {id:P+'shore',type:'line',source:src,filter:['all',UE_SHORE,UE_LINE,['==',['get','type'],'natural']],layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':OLD_INK,'line-width':1.3}},
   {id:P+'pierO',type:'line',source:src,filter:['all',UE_SHORE,UE_LINE,['!=',['get','type'],'natural']],layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':OLD_INK,'line-width':UE_M(9)}},
   {id:P+'pier',type:'line',source:src,filter:['all',UE_SHORE,UE_LINE,['!=',['get','type'],'natural']],layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':'#e9dcc0','line-width':UE_M(7)}}]}
@@ -41,8 +42,8 @@ function ueContLayers(P,src,vis){const D=['==',['get','edit'],'depth_contour'];r
   {id:P+'contS',type:'line',source:src,filter:['all',D,['<=',['get','depth'],5]],layout:{visibility:vis,'line-join':'round'},paint:{'line-color':'#bff4ff','line-opacity':.85,'line-width':['interpolate',['linear'],['zoom'],10,.8,13,1.6],'line-dasharray':[3,2]}},
   {id:P+'contLbl',type:'symbol',source:src,minzoom:13,filter:D,layout:{visibility:vis,'symbol-placement':'line','symbol-spacing':200,'text-field':['concat',['number-format',['get','depth'],{'max-fraction-digits':1}],' m'],'text-font':FONT_I,'text-size':11,'text-keep-upright':true,'text-max-angle':30},paint:{'text-color':'#e6fbff','text-halo-color':'rgba(0,40,60,.85)','text-halo-width':2.6}}]}
 let OLD_ON=false;
-function ueTheme(P){const on=OLD_ON,vis=on?'visible':'none';for(const k of['land','landO','shore','pierO','pier'])if(map.getLayer(P+k))map.setLayoutProperty(P+k,'visibility',vis);const sp=(i,k,v)=>{if(map.getLayer(P+i))map.setPaintProperty(P+i,k,v)},sl=(i,k,v)=>{if(map.getLayer(P+i))map.setLayoutProperty(P+i,k,v)};
-  sp('land','fill-color',on?'#e9dcc0':'#cdbf9c');sp('land','fill-opacity',on?1:.92);sp('landO','line-color',on?OLD_INK:'#4a3b24');sp('shore','line-color',on?OLD_INK:'#f4ecd6');sp('shore','line-width',on?1.3:1.6);
+function ueTheme(P){const on=OLD_ON,vis=on?'visible':'none';for(const k of['land','landC','landO','shore','pierO','pier'])if(map.getLayer(P+k))map.setLayoutProperty(P+k,'visibility',vis);const sp=(i,k,v)=>{if(map.getLayer(P+i))map.setPaintProperty(P+i,k,v)},sl=(i,k,v)=>{if(map.getLayer(P+i))map.setLayoutProperty(P+i,k,v)};
+  sp('land','fill-color',on?'#e9dcc0':'#cdbf9c');sp('land','fill-opacity',on?1:.92);sp('landC','line-color',on?'#e9dcc0':'#cdbf9c');sp('landO','line-color',on?OLD_INK:'#4a3b24');sp('shore','line-color',on?OLD_INK:'#f4ecd6');sp('shore','line-width',on?1.3:1.6);
   sp('pierO','line-color',on?OLD_INK:'#3a3a38');sp('pier','line-color',on?'#e9dcc0':'#d9d4c8');
   sp('cont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');sp('contS','line-color',on?'#2f6f6a':'#bff4ff');sp('cont','line-opacity',on?.75:.85);
   sl('contLbl','text-font',on?FONT_OLD:FONT_I);sp('contLbl','text-color',on?'#2f5652':'#e6fbff');sp('contLbl','text-halo-color',on?'#b9cfc9':'rgba(0,40,60,.85)')}
@@ -55,7 +56,7 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     depth:raster(wms('emodnet:mean_multicolour'),EMOD_ATT),
     contours:raster(wms('emodnet:contours'),EMOD_ATT),
     dcont:{type:'vector',url:pmUrl('contours.pmtiles'),attribution:DEPTH_ATT},
-    uedits:{type:'geojson',data:'data/user-edits.geojson?v=29'},
+    uedits:{type:'geojson',data:'data/user-edits.geojson?v=30'},
     dbands:{type:'vector',url:pmUrl('bands.pmtiles'),attribution:DEPTH_ATT},
     coast:{type:'vector',url:pmUrl('coast.pmtiles'),attribution:OSM_ATT},
     osmSea:raster(['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],'Seamarks © <a href="https://www.openseamap.org">OpenSeaMap</a>',{maxzoom:18}),
@@ -80,9 +81,9 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'old_piera',type:'fill',source:'coast','source-layer':'piers',minzoom:12,filter:['==',['geometry-type'],'Polygon'],layout:{visibility:'none'},paint:{'fill-color':'#e9dcc0','fill-outline-color':OLD_INK}},
     {id:'old_pierO',type:'line',source:'coast','source-layer':'piers',minzoom:12,filter:['==',['geometry-type'],'LineString'],layout:{visibility:'none','line-cap':'butt','line-join':'round'},paint:{'line-color':OLD_INK,'line-width':['interpolate',['exponential',2],['zoom'],12,1.6,15,4.5,18,30]}},
     {id:'old_pier',type:'line',source:'coast','source-layer':'piers',minzoom:12,filter:['==',['geometry-type'],'LineString'],layout:{visibility:'none','line-cap':'butt','line-join':'round'},paint:{'line-color':'#e9dcc0','line-width':['interpolate',['exponential',2],['zoom'],12,.4,15,2.5,18,26]}},
-    ...ueShoreLayers('u','uedits'),
     ...[[4,.45],[9,.28],[15,.16]].map(([o,op],i)=>({id:'old_crip'+i,type:'line',source:'coast','source-layer':'coast',minzoom:12,layout:{visibility:'none'},paint:{'line-color':OLD_INK,'line-width':.6,'line-blur':.4,'line-opacity':op,'line-offset':o}})),
     {id:'old_ccoast',type:'line',source:'coast','source-layer':'coast',minzoom:12,layout:{visibility:'none'},paint:{'line-color':OLD_INK,'line-width':1.3}},
+    ...ueShoreLayers('u','uedits'),
     {id:'old_bld',type:'fill',source:'omt','source-layer':'building',layout:{visibility:'none'},paint:{'fill-color':'#8a6a45','fill-opacity':.18}},
     {id:'old_roads',type:'line',source:'omt','source-layer':'transportation',filter:['!=',['get','class'],'ferry'],layout:{visibility:'none'},paint:{'line-color':OLD_INK,'line-opacity':.7,'line-width':['match',['get','class'],['motorway','trunk','primary'],1.2,['secondary','tertiary'],.8,.4]}},
     {id:'old_ferry',type:'line',source:'omt','source-layer':'transportation',filter:['==',['get','class'],'ferry'],layout:{visibility:'none'},paint:{'line-color':OLD_INK,'line-width':.8,'line-dasharray':[4,3],'line-opacity':.6}},
@@ -722,12 +723,12 @@ async function fetchCells(keys){
 // ---------- static Greek dataset (bundled, cached by SW); live Overpass only outside Greece ----------
 const GR_BB=[19.3,34.5,29.7,41.8];let staticFeats=null,staticState='idle';
 const inGreece=b=>b.getEast()>GR_BB[0]&&b.getWest()<GR_BB[2]&&b.getNorth()>GR_BB[1]&&b.getSouth()<GR_BB[3];
-async function loadPoi(){try{const r=await fetch('data/poi-gr.geojson?v=29',{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
+async function loadPoi(){try{const r=await fetch('data/poi-gr.geojson?v=30',{credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
   for(const f of d.features){const t=f.properties,c=classify(t);if(!c)continue;markById.set(t.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:t.id,od:-1,oz:0,icon:c[0],kind:c[1],prio:-c[2],lt:''}})}
   refreshMarks()}catch(e){console.warn('poi data',e)}}
 async function loadStatic(){if(staticState!=='idle')return;staticState='loading';setStatus('Loading seamarks…');
   let lastErr='';
-  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=29',{credentials:'same-origin',cache:'no-cache'});
+  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=30',{credentials:'same-origin',cache:'no-cache'});
       if(r.redirected&&!new URL(r.url).pathname.endsWith('.geojson'))throw new Error('redirected to '+new URL(r.url).host+new URL(r.url).pathname);
       if(!r.ok)throw new Error('HTTP '+r.status+(r.status===401||r.status===403?' (site login/access)':''));
       const txt=await r.text();let d;try{d=JSON.parse(txt)}catch(_){throw new Error('bad data ('+(r.headers.get('content-type')||'?')+'): '+txt.slice(0,40))}
@@ -802,7 +803,7 @@ if(window.caches)caches.keys().then(k=>Promise.all(k.map(x=>caches.delete(x)))).
   window.addEventListener('pageshow',e=>{if(e.persisted)check()});})();
 
 // v28: bundled user edits – ids for dev auto-hide; moved ids pinned (EMODnet/OSM under user edits is cut in the pmtiles by devedits/apply.py)
-(function(){const go=()=>fetch('data/user-edits.geojson?v=29').then(r=>r.json()).then(d=>{window.BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'||f.properties.edit==='delete'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'));
+(function(){const go=()=>fetch('data/user-edits.geojson?v=30').then(r=>r.json()).then(d=>{window.UE_DATA=d;window.BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'||f.properties.edit==='delete'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'));
   window.DELETED_IDS=new Set(d.features.filter(f=>f.properties.edit==='delete').map(f=>f.properties.target));
   window.PINNED_IDS=new Set(d.features.filter(f=>f.properties.edit==='move').map(f=>f.properties.target));try{refreshMarks()}catch(e){}}).catch(e=>console.warn('user-edits',e));
   if(map.isStyleLoaded())go();else map.once('load',go)})();
