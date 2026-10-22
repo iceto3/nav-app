@@ -1,0 +1,22 @@
+{
+  "name": "nav-app",
+  "private": true,
+  "type": "module",
+  "description": "Navily-like sailing PWA for Greece (static, no build step). Dev tooling only: lint + headless tests.",
+  "scripts": {
+    "serve": "node tests/server.mjs . 8799",
+    "lint": "eslint .",
+    "test": "playwright test",
+    "test:live": "BASE_URL=https://iceto3.github.io/nav-app/ playwright test --grep-invert @local-only",
+    "preload": "node scripts/gen-preload.mjs",
+    "bump": "bash scripts/bump-version.sh",
+    "measure": "node scripts/measure-load.mjs",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "eslint": "9.39.5",
+    "globals": "17.13.0",
+    "pngjs": "7.0.0"
+  }
+}

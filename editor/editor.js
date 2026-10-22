@@ -1,18 +1,21 @@
-// editor glue (loaded AFTER ../app.js; the app itself carries no editor code)
+// editor glue (ES module, runs after ../app.js; the app carries no editor code).
+// Talks to the app only through window.NavApp (see ARCHITECTURE.md "Editor API").
+const NavApp=window.NavApp;if(!NavApp)throw new Error('editor: window.NavApp missing (app.js must load first)');
+const map=NavApp.map,APP_VERSION=NavApp.version;
+const {classify,markById}=NavApp.seamarks,refreshMarks=NavApp.seamarks.refresh;
+const {caseLayer:ueCaseLayer,shoreLayers:ueShoreLayers,contourLayers:ueContLayers,PIER_RADIUS_M:UE_PIER_R}=NavApp.userEdits;
+const ueTheme=P=>NavApp.userEdits.applyTheme(P);
 window.EDITOR_VERSION='editor v1';document.title='Navigator – editor v1';
-// suppress the app's "Dropped pin" (right-click / long-press) while an edit mode is active
-(function(){const o=window.setDest;window.setDest=function(ll,name){if(window.__devEdit&&name==='Dropped pin')return;return o.apply(this,arguments)}})();
 // re-theme the live dev layers + notify the editor when the app switches Old chart on/off
-(function(){const o=window.setOldTheme;window.setOldTheme=function(on){const r=o.apply(this,arguments);try{ueTheme('dv')}catch(e){}window.dispatchEvent(new Event('navtheme'));return r}})();
-// bundled user edits (for auto-hiding already-merged local edits and the live coast cut)
-(function(){const go=()=>fetch('data/user-edits.geojson?v='+String(APP_VERSION).replace(/\D/g,'')).then(r=>r.json()).then(d=>{window.UE_DATA=d;
-  window.BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'||f.properties.edit==='delete'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'))}).catch(e=>console.warn('user-edits',e));
-  if(map.isStyleLoaded())go();else map.once('load',go)})();
+NavApp.on('themechange',()=>{try{ueTheme('dv')}catch(e){console.warn(e)}window.dispatchEvent(new Event('navtheme'))});
+// bundled user edits (for auto-hiding already-merged local edits and the live coast cut), shared with the app's own fetch
+let devEdit=false,UE_DATA=null,BUNDLED_EDIT_IDS=null;
+const gotEdits=d=>{if(!d)return;UE_DATA=d;
+  BUNDLED_EDIT_IDS=new Set(d.features.map(f=>f.properties.edit==='move'||f.properties.edit==='delete'?f.properties.target:f.properties.id));window.dispatchEvent(new Event('bundled-edits'))};
+NavApp.on('useredits',e=>gotEdits(e.detail));gotEdits(NavApp.userEdits.getData());
 // editor v1 (was v25-v32 hidden ?dev=1 mode of the app; now a separate page at /editor/, loading ../app.js for identical rendering). Device-local edits: shore/pier/breakwater lines, depth contours, symbol moves, image overlay.
 (function(){
-const qs=new URLSearchParams(location.search);
-window.__edShim=false;
-const KEY='navDevState',$=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
+const KEY='navDevState',uid=()=>Math.random().toString(36).slice(2,9);
 let S=JSON.parse(localStorage.getItem(KEY)||'null')||{lines:[],moves:{},overlay:null};S.dels=S.dels||{};S.adds=S.adds||{};
 let vT=0,selBefore=null,snapPrev=null,picked=false,lastDrag=0,undo=[],redo=[],mode='view',active=null,selV=null,shoreType='natural',depthVal=1,drag=null;
 const snap=()=>JSON.stringify(S);
@@ -48,8 +51,8 @@ body.dev-on #panel{bottom:var(--devh,0px)}body.dev-on .maplibregl-ctrl-bottom-le
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 const root=document.createElement('div');root.id='dev';root.innerHTML='<span class="tag">DEV</span><div class="list"></div><div class="sub"></div><div class="bar"></div>';document.body.appendChild(root);document.body.classList.add('dev-on');
 const setH=()=>document.documentElement.style.setProperty('--devh',(root.offsetHeight+10)+'px');new ResizeObserver(setH).observe(root);setH();
-document.addEventListener('contextmenu',e=>{if(window.__devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
-window.addEventListener('selectstart',e=>{if(window.__devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
+document.addEventListener('contextmenu',e=>{if(devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
+window.addEventListener('selectstart',e=>{if(devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
 const MODES=[['view','View'],['shore','Shore'],['depth','Depth'],['move','Move'],['add','Add'],['del','Delete'],['image','Image']];
 function bar(){const b=root.querySelector('.bar');b.innerHTML='';
   for(const[m,l]of MODES)btn(b,l,()=>setMode(m),mode===m);
@@ -87,11 +90,11 @@ function list(){const l=root.querySelector('.list');l.innerHTML='';if(!listOpen)
   const row=(t,del)=>{const d=document.createElement('div');const sp=document.createElement('span');sp.textContent=t;d.appendChild(sp);btn(d,'Delete',del,false,'x');l.appendChild(d)};
   S.lines.forEach(L=>row(`${bundled(L.id)?'[bundled, hidden] ':''}${L.kind==='depth'?'Contour '+L.depth+' m':L.type==='natural'?'Natural shore':L.type} · ${L.pts.length} pts${L.closed?' · closed':''}`,()=>{const p=snap();S.lines=S.lines.filter(x=>x!==L);if(active===L.id)active=null;commit(p);list()}));
   for(const id in S.moves)row(`${bundled(id)?'[bundled, hidden] ':''}Moved ${id}`,()=>{const p=snap();delete S.moves[id];commit(p);refreshMarksSafe();list()});
-  for(const id in S.dels)if(!(window.DELETED_IDS&&DELETED_IDS.has(id)))row(`Deleted ${S.dels[id].type} ${id}`,()=>{const p=snap();delete S.dels[id];commit(p);refreshMarksSafe();list()});
+  for(const id in S.dels)if(!(NavApp.seamarks.getDeletedIds()&&NavApp.seamarks.getDeletedIds().has(id)))row(`Deleted ${S.dels[id].type} ${id}`,()=>{const p=snap();delete S.dels[id];commit(p);refreshMarksSafe();list()});
   for(const id in S.adds)if(!bundled(id))row(`Added ${S.adds[id].type}${S.adds[id].name?' “'+S.adds[id].name+'”':''}`,()=>{const p=snap();delete S.adds[id];commit(p);refreshMarksSafe();list()});
   if(S.overlay)row('Image overlay',()=>{const p=snap();S.overlay=null;idb('del');ovRemove();commit(p);list()});
   if(!l.children.length){const d=document.createElement('div');d.textContent='No edits yet';d.style.padding='6px';l.appendChild(d)}}
-function setMode(m){closeForm();mode=m;window.__devEdit=m!=='view';document.body.classList.toggle('dev-edit',m!=='view');document.querySelectorAll('.maplibregl-popup').forEach(x=>x.remove());active=null;selV=null;capture();bar();sub();render()}
+function setMode(m){closeForm();mode=m;devEdit=m!=='view';NavApp.setEditing(devEdit);document.body.classList.toggle('dev-edit',m!=='view');document.querySelectorAll('.maplibregl-popup').forEach(x=>x.remove());active=null;selV=null;capture();bar();sub();render()}
 function exit(){location.href=new URL('./',document.baseURI).href}
 const norm=()=>{S.dels=S.dels||{};S.adds=S.adds||{}};
 function doUndo(){if(!undo.length)return;redo.push(snap());S=JSON.parse(undo.pop());norm();after()}
@@ -100,8 +103,8 @@ function after(){save();active=null;selV=null;render();refreshMarksSafe();ovFrom
 // ---------- map rendering ----------
 const cur=()=>S.lines.find(l=>l.id===active);
 const COL={natural:'#ff3d7f',pier:'#ffd400',breakwater:'#00e5ff',depth:'#7cff6b'};
-const bundled=id=>window.BUNDLED_EDIT_IDS&&window.BUNDLED_EDIT_IDS.has(id);
-const isOld=()=>typeof OLD_ON!=='undefined'&&OLD_ON;
+const bundled=id=>BUNDLED_EDIT_IDS&&BUNDLED_EDIT_IDS.has(id);
+const isOld=()=>NavApp.isOldChart();
 function fc(){const F=[];for(const L of S.lines){if(bundled(L.id))continue;if(L.kind==='shore'&&!isOld())continue;const c=L.closed&&L.pts.length>2?L.pts.concat([L.pts[0]]):L.pts,col=L.kind==='depth'?COL.depth:COL[L.type];
     const poly=L.kind==='shore'&&L.closed&&L.pts.length>2,pr=L.kind==='depth'?{edit:'depth_contour',type:'contour',depth:L.depth}:L.land?{edit:'shore',type:L.type,landOf:L.id}:{edit:'shore',type:L.type};
     if(L.kind==='shore'&&L.type!=='natural'&&L.pts.length>1){const b=bufPoly([L.closed?L.pts.concat([L.pts[0]]):L.pts],UE_PIER_R);if(b)F.push({type:'Feature',geometry:b.geometry,properties:{edit:'shore',type:'pierfill'}})}
@@ -140,7 +143,7 @@ function addLayers(){if(map.getSource('dev'))return;map.addSource('dev',{type:'g
 const SNAP_PX=18,UNSNAP_PX=30;
 function snapSegs(exclL){const S2=[],V=[];const add=(c,kind)=>{for(let i=0;i<c.length-1;i++)S2.push([c[i],c[i+1],kind])};
   try{for(const f of map.querySourceFeatures('coast',{sourceLayer:'coast'})){const g=f.geometry;if(g.type==='LineString')add(g.coordinates,'c');else if(g.type==='MultiLineString')g.coordinates.forEach(c=>add(c,'c'))}}catch(e){}
-  try{const d=window.UE_DATA;for(const f of(d&&d.features)||[]){const p=f.properties||{};if(p.edit!=='shore'||!isOld())continue;const g=f.geometry;
+  try{const d=UE_DATA;for(const f of(d&&d.features)||[]){const p=f.properties||{};if(p.edit!=='shore'||!isOld())continue;const g=f.geometry;
     if(g.type==='Polygon'){add(g.coordinates[0],'c');g.coordinates[0].forEach(c=>V.push([c,'c']))}else if(g.type==='LineString'){const k=p.type==='natural'?'c':'v';if(k==='c')add(g.coordinates,'c');g.coordinates.forEach(c=>V.push([c,k]))}}}catch(e){}
   for(const L of S.lines){if(L.kind!=='shore'||bundled(L.id))continue;if(L.land&&L!==exclL)add(L.land,'c');if(L!==exclL){const k=L.type==='natural'?'c':'v';L.pts.forEach(c=>V.push([c,k]));if(k==='c')add(L.pts,'c')}}
   if(exclL)exclL.pts.forEach((c,i)=>{if(exclL.__skip!==i)V.push([c,'v'])});
@@ -210,7 +213,7 @@ function patchMarks(){const src=map.getSource('marks');if(!src||src.__devPatched
   src.setData=d=>{try{if(d&&d.features){const dl=S.dels,ad=Object.keys(S.adds).filter(id=>!bundled(id));if(Object.keys(dl).length)d={type:'FeatureCollection',features:d.features.filter(f=>!dl[f.properties.id])};if(ad.length)d={type:'FeatureCollection',features:d.features.filter(f=>!S.adds[f.properties.id]).concat(ad.map(id=>addFeat(id,S.adds[id])).filter(Boolean))}}
     if(d&&d.features&&Object.keys(S.moves).length)d={type:'FeatureCollection',features:d.features.map(f=>{const id=f.properties&&f.properties.id,m=bundled(id)?null:S.moves[id];return m?Object.assign({},f,{geometry:{type:'Point',coordinates:m.to}}):f})}}catch(e){console.warn('dev moves',e)}return orig(d)};
   refreshMarksSafe()}
-function refreshMarksSafe(){try{if(typeof refreshMarks==='function')refreshMarks()}catch(e){console.warn(e)}}
+function refreshMarksSafe(){try{refreshMarks()}catch(e){console.warn(e)}}
 // ---------- drag helpers (dragPan always restored) ----------
 function lockPan(){try{map.dragPan.disable()}catch(e){}}
 function unlockPan(){try{if(!map.dragPan.isEnabled())map.dragPan.enable()}catch(e){}}
@@ -246,7 +249,7 @@ function bind(){
   map.on('mouseup',end);map.on('touchend',end);
   const lpStart=e=>{if(mode!=='move')return;if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)return;
     const f=hit(e,['marks','pois','poidots'])[0];if(!f||!f.properties.id)return;
-    const id=f.properties.id;const sf=(typeof staticFeats!=='undefined'&&staticFeats||[]).find(x=>x.properties.id===id);
+    const id=f.properties.id;const sf=(NavApp.seamarks.getStaticFeatures()||[]).find(x=>x.properties.id===id);
     drag={kind:'lp',id,icon:f.properties.icon,from:sf?sf.geometry.coordinates:f.geometry.coordinates,p0:e.point,armed:false};
     drag.t=setTimeout(()=>{if(drag&&drag.kind==='lp'){drag.armed=true;lockPan();drag.ghost=drag.from;render();if(navigator.vibrate)navigator.vibrate(20)}},450)};
   map.on('mousedown',lpStart);map.on('touchstart',lpStart)}
@@ -287,7 +290,7 @@ function exportFC(){const F=[];for(const L of S.lines)if(L.land){F.push({type:'F
   for(const id in S.moves){const m=S.moves[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:m.to},properties:{edit:'move',id,icon:m.icon,from:m.from}})}
   for(const id in S.dels){const x=S.dels[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:x.coords},properties:{edit:'delete',id,icon:x.type}})}
   for(const id in S.adds){const a=S.adds[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:a.coords},properties:Object.assign({edit:'add',id,type:a.type,name:a.name||'',description:a.desc||''},{tags:tagsOf(a)})})}
-  return{type:'FeatureCollection',app:'nav-app',version:typeof APP_VERSION!=='undefined'?APP_VERSION:'',exported:new Date().toISOString(),overlay:S.overlay?Object.assign({},S.overlay,{corners:corners(S.overlay)}):null,features:F}}
+  return{type:'FeatureCollection',app:'nav-app',version:APP_VERSION,exported:new Date().toISOString(),overlay:S.overlay?Object.assign({},S.overlay,{corners:corners(S.overlay)}):null,features:F}}
 async function exportAll(){const txt=JSON.stringify(exportFC(),null,1),name='nav-edits-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.geojson';
   const file=new File([txt],name,{type:'application/geo+json'});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Nav edits'});return}}catch(e){if(e&&e.name==='AbortError')return}
@@ -302,6 +305,6 @@ function importAll(){const f=document.createElement('input');f.type='file';f.acc
     if(d.overlay&&S.overlay)Object.assign(N.overlay,{center:d.overlay.center,w:d.overlay.w,rot:d.overlay.rot,opacity:d.overlay.opacity});
     S=N;commit(p);refreshMarksSafe();ovFromState();list()}catch(e){alert('Import failed: '+e.message)}};f.click()}
 // ---------- init ----------
-function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.addEventListener('navtheme',()=>{sub();render()});map.on('moveend',()=>{if(coastKey&&coastKey!=='[]')setTimeout(()=>{try{liveCoast(true)}catch(e){}},300)});map.on('styleimagemissing',()=>{});window.addEventListener('bundled-edits',()=>{render();refreshMarksSafe();list()});if(window.BUNDLED_EDIT_IDS){render();refreshMarksSafe()}window.__dev={snapAt,coastPath,buildLand,get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
+function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.addEventListener('navtheme',()=>{sub();render()});map.on('moveend',()=>{if(coastKey&&coastKey!=='[]')setTimeout(()=>{try{liveCoast(true)}catch(e){}},300)});map.on('styleimagemissing',()=>{});window.addEventListener('bundled-edits',()=>{render();refreshMarksSafe();list()});if(BUNDLED_EDIT_IDS){render();refreshMarksSafe()}window.__dev={snapAt,coastPath,buildLand,get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
 if(map.loaded()||map.isStyleLoaded())init();else map.once('load',init);
 })();

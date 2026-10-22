@@ -1,0 +1,21 @@
+/** @file Icon set D: illustrated 3D-ish lighthouses and buoys (Satellite and other modern bases; ids prefixed 'D_'). */
+import { W, bandsOf, topmarkFor, shapeOf } from './svg.js?v=34';
+
+/** @param {string} k seamark key @returns {string} SVG */
+export function seamarkSat(k){const g=(id,c1,c2)=>`<linearGradient id="${id}" x1="0" x2="1"><stop offset="0" stop-color="${c2}"/><stop offset=".45" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>`;
+  const sea='<ellipse cx="20" cy="41" rx="12" ry="3" fill="#0b4a6e" opacity=".55"/><path d="M9 41q3-2 6 0t6 0 6 0 5 0" stroke="#bfe9ff" stroke-width="1.2" fill="none"/>';
+  if(k==='light_major')return W(44,52,`<radialGradient id="gl"><stop offset="0" stop-color="#fff7b0" stop-opacity=".95"/><stop offset="1" stop-color="#ffd54f" stop-opacity="0"/></radialGradient>${g('tw','#ffffff','#c9ced6')}`+
+    `<circle cx="22" cy="11" r="11" fill="url(#gl)"/><path d="M15 46l3.2-28h7.6L29 46z" fill="url(#tw)" stroke="#334155" stroke-width=".8"/>`+
+    `<clipPath id="tc"><path d="M15 46l3.2-28h7.6L29 46z"/></clipPath><g clip-path="url(#tc)" fill="#d32f2f"><rect x="10" y="22" width="24" height="5"/><rect x="10" y="32" width="24" height="5"/><rect x="10" y="42" width="24" height="5"/></g>`+
+    `<rect x="17" y="15.5" width="10" height="3" rx="1" fill="#263238"/><rect x="18.5" y="9.5" width="7" height="6" rx="1" fill="#fff59d" stroke="#263238" stroke-width=".8"/><path d="M17.5 9.5L22 5.5l4.5 4z" fill="#b71c1c"/><path d="M11 49h22" stroke="#5d4037" stroke-width="3" stroke-linecap="round"/>`);
+  if(k==='light')return W(30,36,`<radialGradient id="gl"><stop offset="0" stop-color="#fff59d"/><stop offset="1" stop-color="#ffd54f" stop-opacity="0"/></radialGradient><circle cx="15" cy="10" r="9" fill="url(#gl)"/><path d="M12 32l1.5-18h3L18 32z" fill="#eceff1" stroke="#455a64" stroke-width=".8"/><rect x="12.5" y="9" width="5" height="5" rx="1" fill="#ffeb3b" stroke="#455a64" stroke-width=".8"/><path d="M9 33h12" stroke="#5d4037" stroke-width="2.4" stroke-linecap="round"/>`);
+  if(k==='beacon')return W(26,36,`${g('bg','#90a4ae','#546e7a')}<rect x="11" y="8" width="4" height="24" fill="url(#bg)"/><circle cx="13" cy="8" r="4" fill="#78909c" stroke="#37474f" stroke-width=".8"/><path d="M7 33h12" stroke="#5d4037" stroke-width="2.4" stroke-linecap="round"/>`);
+  if(k==='rock'||k==='rock_awash')return W(32,24,`<path d="M4 18q4-11 10-12t9 5 5 7z" fill="#6d4c41" stroke="#3e2723" stroke-width=".8"/><path d="M10 12q3-3 6-3" stroke="#a1887f" stroke-width="1.4" fill="none"/>`+(k==='rock_awash'?'<path d="M2 18q4-3 7 0t7 0 7 0 7 0" stroke="#e3f2fd" stroke-width="2" fill="none"/>':'<path d="M2 15q4-3 7 0t7 0 7 0 7 0v6H2z" fill="#0277bd" opacity=".55"/>'));
+  if(k==='wreck')return W(36,26,'<path d="M4 15l4 6h18l5-9-8 3z" fill="#6d4c41" stroke="#3e2723" stroke-width=".8" transform="rotate(-12 18 15)"/><path d="M15 14V4" stroke="#4e342e" stroke-width="1.6" transform="rotate(-25 15 14)"/><path d="M2 20q4-3 8 0t8 0 8 0 8 0v5H2z" fill="#0277bd" opacity=".6"/>');
+  if(k==='danger')return W(30,30,'<path d="M15 3l12 21H3z" fill="#ffb300" stroke="#e65100" stroke-width="1.4" stroke-linejoin="round"/><path d="M15 10v7" stroke="#3e2723" stroke-width="2.4" stroke-linecap="round"/><circle cx="15" cy="20.5" r="1.4" fill="#3e2723"/>');
+  const sh=shapeOf(k);const b=bandsOf(k);
+  const clip={can:'M13 38V21h14v17z',cone:'M12 38l8-18 8 18z',sphere:'M12 37a8 8 0 1 1 16 0z',pillar:'M13 38l3-19h8l3 19z'}[sh];
+  const hh=19,top=19,bh=hh/b.length;const strips=b.map((c,i)=>`<rect x="8" y="${top+i*bh}" width="24" height="${bh+.2}" fill="${c}"/>`).join('');
+  const tm=topmarkFor(k,20,k.startsWith('card_')?6:9,6,'#263238');
+  return W(40,46,`<linearGradient id="sh" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset=".4" stop-color="#fff" stop-opacity=".35"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient>`+
+    `<path d="M20 19v-4" stroke="#37474f" stroke-width="1.6"/><clipPath id="bc"><path d="${clip}"/></clipPath><g clip-path="url(#bc)">${strips}<rect x="8" y="15" width="24" height="25" fill="url(#sh)"/></g><path d="${clip}" fill="none" stroke="#263238" stroke-width=".8"/>${sea}${tm}`)}
