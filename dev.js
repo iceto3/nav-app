@@ -55,8 +55,8 @@ function sub(){const s=root.querySelector('.sub');s.innerHTML='';
 }
 function list(){const l=root.querySelector('.list');l.innerHTML='';if(!listOpen)return;
   const row=(t,del)=>{const d=document.createElement('div');const sp=document.createElement('span');sp.textContent=t;d.appendChild(sp);btn(d,'Delete',del,false,'x');l.appendChild(d)};
-  S.lines.forEach(L=>row(`${L.kind==='depth'?'Contour '+L.depth+' m':L.type==='natural'?'Natural shore':L.type} · ${L.pts.length} pts${L.closed?' · closed':''}`,()=>{const p=snap();S.lines=S.lines.filter(x=>x!==L);if(active===L.id)active=null;commit(p);list()}));
-  for(const id in S.moves)row(`Moved ${id}`,()=>{const p=snap();delete S.moves[id];commit(p);refreshMarksSafe();list()});
+  S.lines.forEach(L=>row(`${bundled(L.id)?'[bundled, hidden] ':''}${L.kind==='depth'?'Contour '+L.depth+' m':L.type==='natural'?'Natural shore':L.type} · ${L.pts.length} pts${L.closed?' · closed':''}`,()=>{const p=snap();S.lines=S.lines.filter(x=>x!==L);if(active===L.id)active=null;commit(p);list()}));
+  for(const id in S.moves)row(`${bundled(id)?'[bundled, hidden] ':''}Moved ${id}`,()=>{const p=snap();delete S.moves[id];commit(p);refreshMarksSafe();list()});
   if(S.overlay)row('Image overlay',()=>{const p=snap();S.overlay=null;idb('del');ovRemove();commit(p);list()});
   if(!l.children.length){const d=document.createElement('div');d.textContent='No edits yet';d.style.padding='6px';l.appendChild(d)}}
 function setMode(m){mode=m;window.__devEdit=m!=='view';document.body.classList.toggle('dev-edit',m!=='view');document.querySelectorAll('.maplibregl-popup').forEach(x=>x.remove());active=null;selV=null;capture();bar();sub();render()}
@@ -67,7 +67,8 @@ function after(){save();active=null;selV=null;render();refreshMarksSafe();ovFrom
 // ---------- map rendering ----------
 const cur=()=>S.lines.find(l=>l.id===active);
 const COL={natural:'#ff3d7f',pier:'#ffd400',breakwater:'#00e5ff',depth:'#7cff6b'};
-function fc(){const F=[];for(const L of S.lines){const c=L.closed&&L.pts.length>2?L.pts.concat([L.pts[0]]):L.pts,col=L.kind==='depth'?COL.depth:COL[L.type];
+const bundled=id=>window.BUNDLED_EDIT_IDS&&window.BUNDLED_EDIT_IDS.has(id);
+function fc(){const F=[];for(const L of S.lines){if(bundled(L.id))continue;const c=L.closed&&L.pts.length>2?L.pts.concat([L.pts[0]]):L.pts,col=L.kind==='depth'?COL.depth:COL[L.type];
     if(c.length>1)F.push({type:'Feature',geometry:{type:'LineString',coordinates:c},properties:{col,act:L.id===active?1:0,lbl:L.kind==='depth'?L.depth+' m':''}});
     const showV=(mode==='shore'&&L.kind==='shore')||(mode==='depth'&&L.kind==='depth');
     if(showV){L.pts.forEach((p,i)=>F.push({type:'Feature',geometry:{type:'Point',coordinates:p},properties:{v:1,lid:L.id,i,sel:L.id===active&&i===selV?1:0,col}}));
@@ -83,7 +84,7 @@ function addLayers(){if(map.getSource('dev'))return;map.addSource('dev',{type:'g
   map.addLayer({id:'devGhost',type:'circle',source:'dev',filter:['has','g'],paint:{'circle-radius':14,'circle-color':'#e65100','circle-opacity':.5,'circle-stroke-color':'#fff','circle-stroke-width':2}})}
 // ---------- marks overrides ----------
 function patchMarks(){const src=map.getSource('marks');if(!src||src.__devPatched)return;const orig=src.setData.bind(src);src.__devPatched=true;
-  src.setData=d=>{try{if(d&&d.features&&Object.keys(S.moves).length)d={type:'FeatureCollection',features:d.features.map(f=>{const m=S.moves[f.properties&&f.properties.id];return m?Object.assign({},f,{geometry:{type:'Point',coordinates:m.to}}):f})}}catch(e){console.warn('dev moves',e)}return orig(d)};
+  src.setData=d=>{try{if(d&&d.features&&Object.keys(S.moves).length)d={type:'FeatureCollection',features:d.features.map(f=>{const id=f.properties&&f.properties.id,m=bundled(id)?null:S.moves[id];return m?Object.assign({},f,{geometry:{type:'Point',coordinates:m.to}}):f})}}catch(e){console.warn('dev moves',e)}return orig(d)};
   refreshMarksSafe()}
 function refreshMarksSafe(){try{if(typeof refreshMarks==='function')refreshMarks()}catch(e){console.warn(e)}}
 // ---------- drag helpers (dragPan always restored) ----------
@@ -163,6 +164,6 @@ function importAll(){const f=document.createElement('input');f.type='file';f.acc
     if(d.overlay&&S.overlay)Object.assign(N.overlay,{center:d.overlay.center,w:d.overlay.w,rot:d.overlay.rot,opacity:d.overlay.opacity});
     S=N;commit(p);refreshMarksSafe();ovFromState();list()}catch(e){alert('Import failed: '+e.message)}};f.click()}
 // ---------- init ----------
-function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.__dev={get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
+function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.addEventListener('bundled-edits',()=>{render();refreshMarksSafe();list()});if(window.BUNDLED_EDIT_IDS){render();refreshMarksSafe()}window.__dev={get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
 if(map.loaded()||map.isStyleLoaded())init();else map.once('load',init);
 })();
