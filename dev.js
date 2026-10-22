@@ -4,11 +4,26 @@ const qs=new URLSearchParams(location.search);
 if(qs.get('dev')==='1')localStorage.setItem('navDev','1');if(qs.get('dev')==='0')localStorage.removeItem('navDev');
 if(localStorage.getItem('navDev')!=='1')return;
 const KEY='navDevState',$=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
-let S=JSON.parse(localStorage.getItem(KEY)||'null')||{lines:[],moves:{},overlay:null};
+let S=JSON.parse(localStorage.getItem(KEY)||'null')||{lines:[],moves:{},overlay:null};S.dels=S.dels||{};S.adds=S.adds||{};
 let picked=false,lastDrag=0,undo=[],redo=[],mode='view',active=null,selV=null,shoreType='natural',depthVal=1,drag=null;
 const snap=()=>JSON.stringify(S);
 function commit(prev){undo.push(prev);if(undo.length>100)undo.shift();redo=[];save();render()}
 function save(){localStorage.setItem(KEY,snap())}
+const ADD_TYPES=[['marina','Marina',{leisure:'marina'}],['harbour','Harbour',{'seamark:type':'harbour'}],['anchorage','Anchorage',{'seamark:type':'anchorage'}],['fuel','Fuel',{waterway:'fuel'}],['fuel_truck','Fuel truck',{poi:'fuel_truck'}],
+ ['chandlery','Chandlery',{poi:'chandlery'}],['grocery','Grocery',{poi:'grocery'}],['hardware','Hardware',{poi:'hardware'}],['gshop','Shop',{poi:'gshop'}],['pharmacy','Pharmacy',{poi:'pharmacy'}],['hospital','Hospital',{poi:'hospital'}],
+ ['medical','Medical',{poi:'medical'}],['rest','Restaurant',{poi:'rest'}],['fishrest','Fish taverna',{poi:'fishrest'}],['steak','Grill',{poi:'steak'}],['service','Boat service',{poi:'service'}]];
+let addType='marina',form=null;
+const iconId=icon=>(isOld()?'':'D_')+icon;
+function iconURL(icon){try{const im=map.style.getImage(iconId(icon));if(!im)return'';const d=im.data,c=document.createElement('canvas');c.width=d.width;c.height=d.height;c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(d.data),d.width,d.height),0,0);return c.toDataURL()}catch(e){return''}}
+const tagsOf=a=>{const t=Object.assign({},(ADD_TYPES.find(x=>x[0]===a.type)||ADD_TYPES[0])[2]);if(a.name)t.name=a.name;if(a.desc)t.description=a.desc;return t};
+function addFeat(id,a){const t=tagsOf(a),c=classify(t);if(!c)return null;markById.set(id,t);return{type:'Feature',geometry:{type:'Point',coordinates:a.coords},properties:{id,od:-1,oz:0,icon:c[0],kind:c[1],prio:-c[2],lt:''}}}
+function openForm(id){const a=S.adds[id];if(!a)return;form&&form.remove();form=document.createElement('div');form.className='list';
+  form.innerHTML='<b style="padding:4px 6px">'+(ADD_TYPES.find(x=>x[0]===a.type)||['',''])[1]+'</b><input placeholder="Name" style="width:100%"><textarea placeholder="Description" rows="3" style="width:100%;font:inherit;color:#fff;background:#38404a;border:0;border-radius:8px;padding:7px"></textarea><div></div>';
+  const [n,d]=[form.querySelector('input'),form.querySelector('textarea')];n.value=a.name||'';d.value=a.desc||'';const row=form.querySelector('div');
+  btn(row,'Save',()=>{const p=snap();a.name=n.value.trim();a.desc=d.value.trim();commit(p);refreshMarksSafe();closeForm()});
+  btn(row,'Delete',()=>{const p=snap();delete S.adds[id];commit(p);refreshMarksSafe();closeForm()},false,'x');btn(row,'Cancel',closeForm);
+  root.insertBefore(form,root.querySelector('.sub'));setTimeout(()=>n.focus(),50)}
+function closeForm(){if(form){form.remove();form=null}}
 const DEPTHS=[0.5,1,1.5,2,2.5,3,3.5,4,4.5];
 // ---------- UI ----------
 const css=`#dev{position:fixed;left:6px;right:6px;bottom:calc(env(safe-area-inset-bottom) + 6px);z-index:3000;font:13px -apple-system,system-ui,sans-serif;pointer-events:none}
@@ -26,13 +41,14 @@ const root=document.createElement('div');root.id='dev';root.innerHTML='<span cla
 const setH=()=>document.documentElement.style.setProperty('--devh',(root.offsetHeight+10)+'px');new ResizeObserver(setH).observe(root);setH();
 document.addEventListener('contextmenu',e=>{if(window.__devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
 window.addEventListener('selectstart',e=>{if(window.__devEdit&&e.target.closest&&e.target.closest('#map'))e.preventDefault()},{capture:true});
-const MODES=[['view','View'],['shore','Shore'],['depth','Depth'],['move','Move'],['image','Image']];
+const MODES=[['view','View'],['shore','Shore'],['depth','Depth'],['move','Move'],['add','Add'],['del','Delete'],['image','Image']];
 function bar(){const b=root.querySelector('.bar');b.innerHTML='';
   for(const[m,l]of MODES)btn(b,l,()=>setMode(m),mode===m);
   btn(b,'↶',doUndo);btn(b,'↷',doRedo);btn(b,'☰',()=>{listOpen=!listOpen;list()},listOpen);btn(b,'⇩',exportAll);btn(b,'⇧',importAll);btn(b,'✕',exit,false,'x')}
 let listOpen=false;
 function btn(p,l,f,on,cls){const e=document.createElement('button');e.textContent=l;if(on)e.className='on';if(cls)e.classList.add(cls);e.onclick=ev=>{ev.stopPropagation();f()};p.appendChild(e);return e}
 function sub(){const s=root.querySelector('.sub');s.innerHTML='';
+  if(mode==='shore'&&!isOld()){const t=document.createElement('span');t.textContent='Drawing applies to Old chart – switch base to draw';t.style.padding='8px';s.appendChild(t);return}
   if(mode==='shore'||mode==='depth'){
     if(mode==='shore'){const sel=document.createElement('select');for(const t of['natural','pier','breakwater'])sel.add(new Option(t==='natural'?'Natural shore':t[0].toUpperCase()+t.slice(1),t));{const PL=picked&&cur();if(PL&&PL.type)shoreType=PL.type}sel.value=shoreType;sel.onchange=()=>{shoreType=sel.value;const L=cur();if(L&&(L.pts.length<2||picked)){const p=snap();L.type=shoreType;commit(p)}else{active=null;selV=null;render()}};s.appendChild(sel)}
     else{const PL=picked&&cur();if(PL&&PL.depth!=null)depthVal=PL.depth;const sel=document.createElement('select');for(const d of DEPTHS)sel.add(new Option(d+' m',String(d)));sel.add(new Option('other…','x'));sel.value=DEPTHS.includes(depthVal)?String(depthVal):'x';
@@ -44,6 +60,10 @@ function sub(){const s=root.querySelector('.sub');s.innerHTML='';
     btn(s,'Close',()=>{const L=cur();if(L&&L.pts.length>2){const p=snap();L.closed=true;active=null;commit(p)}});
     btn(s,'Del vertex',()=>{const L=cur();if(L&&selV!=null){const p=snap();L.pts.splice(selV,1);selV=null;if(L.pts.length<2)L.closed=false;if(!L.pts.length){S.lines=S.lines.filter(x=>x!==L);active=null}commit(p)}});
   }
+  if(mode==='add'){s.style.flexWrap='nowrap';s.style.overflowX='auto';for(const[k,l]of ADD_TYPES){const b=btn(s,'',()=>{addType=k;sub()},addType===k);b.title=l;b.style.padding='3px';b.style.flex='0 0 auto';const u=iconURL(k==='chandlery'?'shop':['marina','harbour','anchorage','fuel','fuel_truck'].includes(k)?k:'p_'+k);
+      if(u){const im=document.createElement('img');im.src=u;im.style.cssText='width:28px;height:28px;object-fit:contain;display:block';b.appendChild(im)}else b.textContent=l}
+    const t=document.createElement('span');t.textContent='Tap map to place';t.style.cssText='padding:8px;flex:0 0 auto';s.appendChild(t)}else{s.style.flexWrap='';s.style.overflowX=''}
+  if(mode==='del'){const t=document.createElement('span');t.textContent='Tap a symbol to delete it';t.style.padding='8px';s.appendChild(t)}
   if(mode==='move'){const t=document.createElement('span');t.textContent='Long-press a symbol, then drag';t.style.padding='8px';s.appendChild(t)}
   if(mode==='image'){const f=document.createElement('input');f.type='file';f.accept='image/*';f.hidden=true;f.onchange=()=>f.files[0]&&loadImg(f.files[0]);s.appendChild(f);btn(s,'Photo…',()=>f.click());
     if(S.overlay){const o=S.overlay;
@@ -57,18 +77,22 @@ function list(){const l=root.querySelector('.list');l.innerHTML='';if(!listOpen)
   const row=(t,del)=>{const d=document.createElement('div');const sp=document.createElement('span');sp.textContent=t;d.appendChild(sp);btn(d,'Delete',del,false,'x');l.appendChild(d)};
   S.lines.forEach(L=>row(`${bundled(L.id)?'[bundled, hidden] ':''}${L.kind==='depth'?'Contour '+L.depth+' m':L.type==='natural'?'Natural shore':L.type} · ${L.pts.length} pts${L.closed?' · closed':''}`,()=>{const p=snap();S.lines=S.lines.filter(x=>x!==L);if(active===L.id)active=null;commit(p);list()}));
   for(const id in S.moves)row(`${bundled(id)?'[bundled, hidden] ':''}Moved ${id}`,()=>{const p=snap();delete S.moves[id];commit(p);refreshMarksSafe();list()});
+  for(const id in S.dels)if(!(window.DELETED_IDS&&DELETED_IDS.has(id)))row(`Deleted ${S.dels[id].type} ${id}`,()=>{const p=snap();delete S.dels[id];commit(p);refreshMarksSafe();list()});
+  for(const id in S.adds)if(!bundled(id))row(`Added ${S.adds[id].type}${S.adds[id].name?' “'+S.adds[id].name+'”':''}`,()=>{const p=snap();delete S.adds[id];commit(p);refreshMarksSafe();list()});
   if(S.overlay)row('Image overlay',()=>{const p=snap();S.overlay=null;idb('del');ovRemove();commit(p);list()});
   if(!l.children.length){const d=document.createElement('div');d.textContent='No edits yet';d.style.padding='6px';l.appendChild(d)}}
-function setMode(m){mode=m;window.__devEdit=m!=='view';document.body.classList.toggle('dev-edit',m!=='view');document.querySelectorAll('.maplibregl-popup').forEach(x=>x.remove());active=null;selV=null;capture();bar();sub();render()}
+function setMode(m){closeForm();mode=m;window.__devEdit=m!=='view';document.body.classList.toggle('dev-edit',m!=='view');document.querySelectorAll('.maplibregl-popup').forEach(x=>x.remove());active=null;selV=null;capture();bar();sub();render()}
 function exit(){localStorage.removeItem('navDev');location.href=location.pathname+'?dev=0'}
-function doUndo(){if(!undo.length)return;redo.push(snap());S=JSON.parse(undo.pop());after()}
-function doRedo(){if(!redo.length)return;undo.push(snap());S=JSON.parse(redo.pop());after()}
+const norm=()=>{S.dels=S.dels||{};S.adds=S.adds||{}};
+function doUndo(){if(!undo.length)return;redo.push(snap());S=JSON.parse(undo.pop());norm();after()}
+function doRedo(){if(!redo.length)return;undo.push(snap());S=JSON.parse(redo.pop());norm();after()}
 function after(){save();active=null;selV=null;render();refreshMarksSafe();ovFromState();sub();list()}
 // ---------- map rendering ----------
 const cur=()=>S.lines.find(l=>l.id===active);
 const COL={natural:'#ff3d7f',pier:'#ffd400',breakwater:'#00e5ff',depth:'#7cff6b'};
 const bundled=id=>window.BUNDLED_EDIT_IDS&&window.BUNDLED_EDIT_IDS.has(id);
-function fc(){const F=[];for(const L of S.lines){if(bundled(L.id))continue;const c=L.closed&&L.pts.length>2?L.pts.concat([L.pts[0]]):L.pts,col=L.kind==='depth'?COL.depth:COL[L.type];
+const isOld=()=>typeof OLD_ON!=='undefined'&&OLD_ON;
+function fc(){const F=[];for(const L of S.lines){if(bundled(L.id))continue;if(L.kind==='shore'&&!isOld())continue;const c=L.closed&&L.pts.length>2?L.pts.concat([L.pts[0]]):L.pts,col=L.kind==='depth'?COL.depth:COL[L.type];
     const poly=L.kind==='shore'&&L.closed&&L.pts.length>2,pr=L.kind==='depth'?{edit:'depth_contour',type:'contour',depth:L.depth}:{edit:'shore',type:L.type};
     if(c.length>1)F.push({type:'Feature',geometry:poly?{type:'Polygon',coordinates:[c]}:{type:'LineString',coordinates:c},properties:pr});
     if(c.length>1&&L.id===active)F.push({type:'Feature',geometry:{type:'LineString',coordinates:c},properties:{act:1,col}});
@@ -85,7 +109,7 @@ function bufPoly(lines,r){const P=[];for(const pts of lines){if(!pts.length)cont
   return P.length?{type:'Feature',properties:{},geometry:{type:'MultiPolygon',coordinates:P}}:null}
 let maskKey='';
 function liveMask(){const vis=S.lines.filter(L=>!bundled(L.id)&&L.pts.length>1);const key=JSON.stringify(vis.map(L=>[L.pts,L.type]));if(key===maskKey)return;maskKey=key;
-  const area=bufPoly(vis.map(L=>L.closed?L.pts.concat([L.pts[0]]):L.pts),150),piers=bufPoly(vis.filter(L=>L.kind==='shore'&&L.type!=='natural').map(L=>L.pts),10);
+  const area=bufPoly(vis.filter(L=>L.kind==='depth').map(L=>L.closed?L.pts.concat([L.pts[0]]):L.pts),150),piers=bufPoly(vis.filter(L=>L.kind==='shore'&&L.type!=='natural').map(L=>L.pts),10);
   const set=(ids,m)=>{for(const id of ids){if(!map.getLayer(id))continue;if(!(id in ORIGF))ORIGF[id]=map.getFilter(id)||null;const o=ORIGF[id];
     try{map.setFilter(id,m?(o?['all',o,['!',['within',m]]]:['!',['within',m]]):o)}catch(e){console.warn('dev mask',id,e)}}};
   set(['dcont','dcontS','dcontLbl'],area);set(['old_pier','old_pierO'],piers)}
@@ -98,7 +122,8 @@ function addLayers(){if(map.getSource('dev'))return;map.addSource('dev',{type:'g
   map.addLayer({id:'devGhost',type:'circle',source:'dev',filter:['has','g'],paint:{'circle-radius':14,'circle-color':'#e65100','circle-opacity':.5,'circle-stroke-color':'#fff','circle-stroke-width':2}})}
 // ---------- marks overrides ----------
 function patchMarks(){const src=map.getSource('marks');if(!src||src.__devPatched)return;const orig=src.setData.bind(src);src.__devPatched=true;
-  src.setData=d=>{try{if(d&&d.features&&Object.keys(S.moves).length)d={type:'FeatureCollection',features:d.features.map(f=>{const id=f.properties&&f.properties.id,m=bundled(id)?null:S.moves[id];return m?Object.assign({},f,{geometry:{type:'Point',coordinates:m.to}}):f})}}catch(e){console.warn('dev moves',e)}return orig(d)};
+  src.setData=d=>{try{if(d&&d.features){const dl=S.dels,ad=Object.keys(S.adds).filter(id=>!bundled(id));if(Object.keys(dl).length)d={type:'FeatureCollection',features:d.features.filter(f=>!dl[f.properties.id])};if(ad.length)d={type:'FeatureCollection',features:d.features.filter(f=>!S.adds[f.properties.id]).concat(ad.map(id=>addFeat(id,S.adds[id])).filter(Boolean))}}
+    if(d&&d.features&&Object.keys(S.moves).length)d={type:'FeatureCollection',features:d.features.map(f=>{const id=f.properties&&f.properties.id,m=bundled(id)?null:S.moves[id];return m?Object.assign({},f,{geometry:{type:'Point',coordinates:m.to}}):f})}}catch(e){console.warn('dev moves',e)}return orig(d)};
   refreshMarksSafe()}
 function refreshMarksSafe(){try{if(typeof refreshMarks==='function')refreshMarks()}catch(e){console.warn(e)}}
 // ---------- drag helpers (dragPan always restored) ----------
@@ -108,7 +133,12 @@ function unlockPan(){try{if(!map.dragPan.isEnabled())map.dragPan.enable()}catch(
 const pt=e=>e.lngLat?[e.lngLat.lng,e.lngLat.lat]:null;
 function hit(e,layers){const r=8,p=e.point;return map.queryRenderedFeatures([[p.x-r,p.y-r],[p.x+r,p.y+r]],{layers:layers.filter(l=>map.getLayer(l))})}
 function bind(){
-  map.on('click',e=>{if(mode!=='shore'&&mode!=='depth')return;if(drag&&drag.moved||Date.now()-lastDrag<350)return;
+  map.on('click',e=>{if(mode!=='add'&&mode!=='del')return;if(Date.now()-lastDrag<350)return;const f=hit(e,['marks','pois','poidots'])[0];
+    if(mode==='del'){if(!f||!f.properties.id)return;const id=f.properties.id;if(!confirm('Delete this '+(f.properties.kind||f.properties.icon)+'?'))return;const p=snap();
+      if(S.adds[id])delete S.adds[id];else S.dels[id]={type:f.properties.icon,coords:f.geometry.coordinates};commit(p);refreshMarksSafe();return}
+    if(f&&S.adds[f.properties.id]){openForm(f.properties.id);return}
+    const p=snap(),id='u'+uid();S.adds[id]={type:addType,coords:pt(e),name:'',desc:''};commit(p);refreshMarksSafe();openForm(id)});
+  map.on('click',e=>{if(mode!=='shore'&&mode!=='depth')return;if(mode==='shore'&&!isOld())return;if(drag&&drag.moved||Date.now()-lastDrag<350)return;
     const v=hit(e,['devVtx'])[0];if(v){active=v.properties.lid;selV=v.properties.i;picked=true;sub();render();return}
     const m=hit(e,['devMid'])[0];if(m){const L=S.lines.find(l=>l.id===m.properties.lid);if(L){const p=snap();L.pts.splice(m.properties.i,0,pt(e));active=L.id;selV=m.properties.i;commit(p)}return}
     const p=snap();let L=cur();if(!L||(mode==='depth')!==(L.kind==='depth')){L={id:uid(),kind:mode==='depth'?'depth':'shore',type:mode==='depth'?'contour':shoreType,depth:mode==='depth'?depthVal:null,pts:[],closed:false};S.lines.push(L);active=L.id}
@@ -122,7 +152,7 @@ function bind(){
   map.on('mousemove',mv);map.on('touchmove',mv);
   const end=e=>{if(!drag)return;const d=drag;drag=null;if(d.moved)lastDrag=Date.now();unlockPan();
     if(d.kind==='v'&&d.moved)commit(d.prev);
-    if(d.kind==='lp'){clearTimeout(d.t);if(d.armed&&d.moved&&d.ghost){const p=snap();const o=S.moves[d.id];S.moves[d.id]={from:o?o.from:d.from,to:d.ghost,icon:d.icon};commit(p);refreshMarksSafe()}}
+    if(d.kind==='lp'){clearTimeout(d.t);if(d.armed&&d.moved&&d.ghost&&S.adds[d.id]){const p=snap();S.adds[d.id].coords=d.ghost;commit(p);refreshMarksSafe()}else if(d.armed&&d.moved&&d.ghost){const p=snap();const o=S.moves[d.id];S.moves[d.id]={from:o?o.from:d.from,to:d.ghost,icon:d.icon};commit(p);refreshMarksSafe()}}
     render()};
   map.on('mouseup',end);map.on('touchend',end);
   const lpStart=e=>{if(mode!=='move')return;if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)return;
@@ -165,19 +195,21 @@ function gs(T){const r=cap.getBoundingClientRect(),P=[...T].map(t=>[t.clientX-r.
 // ---------- export / import ----------
 function exportFC(){const F=S.lines.map(L=>({type:'Feature',geometry:L.closed&&L.pts.length>2?{type:'Polygon',coordinates:[L.pts.concat([L.pts[0]])]}:{type:'LineString',coordinates:L.pts},properties:{edit:L.kind==='depth'?'depth_contour':'shore',type:L.kind==='depth'?'contour':L.type,depth:L.depth,closed:!!L.closed,id:L.id}}));
   for(const id in S.moves){const m=S.moves[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:m.to},properties:{edit:'move',id,icon:m.icon,from:m.from}})}
+  for(const id in S.dels){const x=S.dels[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:x.coords},properties:{edit:'delete',id,icon:x.type}})}
+  for(const id in S.adds){const a=S.adds[id];F.push({type:'Feature',geometry:{type:'Point',coordinates:a.coords},properties:Object.assign({edit:'add',id,type:a.type,name:a.name||'',description:a.desc||''},{tags:tagsOf(a)})})}
   return{type:'FeatureCollection',app:'nav-app',version:typeof APP_VERSION!=='undefined'?APP_VERSION:'',exported:new Date().toISOString(),overlay:S.overlay?Object.assign({},S.overlay,{corners:corners(S.overlay)}):null,features:F}}
 async function exportAll(){const txt=JSON.stringify(exportFC(),null,1),name='nav-edits-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.geojson';
   const file=new File([txt],name,{type:'application/geo+json'});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Nav edits'});return}}catch(e){if(e&&e.name==='AbortError')return}
   const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function importAll(){const f=document.createElement('input');f.type='file';f.accept='.geojson,.json,application/geo+json,application/json';
-  f.onchange=async()=>{try{const d=JSON.parse(await f.files[0].text()),p=snap(),N={lines:[],moves:{},overlay:S.overlay};
-    for(const x of d.features||[]){const q=x.properties||{};if(q.edit==='move')N.moves[q.id]={from:q.from,to:x.geometry.coordinates,icon:q.icon};
+  f.onchange=async()=>{try{const d=JSON.parse(await f.files[0].text()),p=snap(),N={lines:[],moves:{},dels:{},adds:{},overlay:S.overlay};
+    for(const x of d.features||[]){const q=x.properties||{};if(q.edit==='delete')N.dels[q.id]={type:q.icon,coords:x.geometry.coordinates};else if(q.edit==='add')N.adds[q.id]={type:q.type,coords:x.geometry.coordinates,name:q.name||'',desc:q.description||''};else if(q.edit==='move')N.moves[q.id]={from:q.from,to:x.geometry.coordinates,icon:q.icon};
       else if(q.edit==='shore'||q.edit==='depth_contour'){const poly=x.geometry.type==='Polygon',c=poly?x.geometry.coordinates[0].slice(0,-1):x.geometry.coordinates;
         N.lines.push({id:q.id||uid(),kind:q.edit==='shore'?'shore':'depth',type:q.edit==='shore'?(q.type||'natural'):'contour',depth:q.depth==null?null:+q.depth,pts:c,closed:poly})}}
     if(d.overlay&&S.overlay)Object.assign(N.overlay,{center:d.overlay.center,w:d.overlay.w,rot:d.overlay.rot,opacity:d.overlay.opacity});
     S=N;commit(p);refreshMarksSafe();ovFromState();list()}catch(e){alert('Import failed: '+e.message)}};f.click()}
 // ---------- init ----------
-function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.addEventListener('bundled-edits',()=>{render();refreshMarksSafe();list()});if(window.BUNDLED_EDIT_IDS){render();refreshMarksSafe()}window.__dev={get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
+function init(){map.getContainer().appendChild(cap);addLayers();patchMarks();bind();bar();sub();ovFromState();render();window.addEventListener('navtheme',()=>{sub();render()});map.on('styleimagemissing',()=>{});window.addEventListener('bundled-edits',()=>{render();refreshMarksSafe();list()});if(window.BUNDLED_EDIT_IDS){render();refreshMarksSafe()}window.__dev={get S(){return S},setMode,exportFC,undo:doUndo,redo:doRedo}}
 if(map.loaded()||map.isStyleLoaded())init();else map.once('load',init);
 })();
