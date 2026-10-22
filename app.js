@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='v15';
+const APP_VERSION='v16';
 // On-screen error reporter: makes iPhone JS errors visible
 (function(){const show=m=>{try{let e=document.getElementById('errToast');if(!e){e=document.createElement('div');e.id='errToast';e.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 90px);z-index:3000;background:#b71c1c;color:#fff;font:12px system-ui;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word';e.onclick=()=>e.remove();document.body.appendChild(e)}e.textContent='⚠ '+m;clearTimeout(show.t);show.t=setTimeout(()=>e.remove(),12000)}catch(_){}};
   window.onerror=(msg,src,l,c,err)=>{show(msg+' ('+String(src||'').split('/').pop()+':'+l+':'+c+')')};
@@ -20,7 +20,7 @@ const raster=(tiles,att,extra={})=>Object.assign({type:'raster',tiles,tileSize:2
 const FONT_R=['Noto Sans Regular'],FONT_B=['Noto Sans Bold'],FONT_I=['Noto Sans Italic'];
 // English-first names everywhere; local name only as last resort
 const NAME_EN=['coalesce',['get','name:en'],['get','name_en'],['get','name:latin'],['get','name_int'],['get','name']];
-const OLD_INK='#6b4a2b',FONT_OLD=['IM Fell Italic'];
+const OLD_INK='#6b4a2b',FONT_OLD=['Libre Caslon Italic'];
 const HALO={'text-halo-color':'rgba(0,0,0,.75)','text-halo-width':1.6,'text-halo-blur':.4};
 const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
   sources:{
@@ -63,13 +63,13 @@ const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{
     {id:'osmSea',type:'raster',source:'osmSea',layout:{visibility:'none'}},
     {id:'routeCasing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],10,6,18,14],'line-opacity':.9}},
     {id:'route',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,4,18,10]}},
-    {id:'marks',type:'symbol',source:'marks',minzoom:11,layout:{'icon-image':['get','icon'],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
+    {id:'marks',type:'symbol',source:'marks',minzoom:11,layout:{'icon-image':['concat','D_',['get','icon']],'icon-offset':['step',['zoom'],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],14,['case',['>=',['coalesce',['get','oz'],0],14],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],15,['case',['>=',['coalesce',['get','oz'],0],15],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],16,['case',['>=',['coalesce',['get','oz'],0],16],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],17,['case',['>=',['coalesce',['get','oz'],0],17],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]],18,['case',['>=',['coalesce',['get','oz'],0],18],['match',['coalesce',['get','od'],-1],0,['literal',[0,-54]],1,['literal',[38,-38]],2,['literal',[54,0]],3,['literal',[38,38]],4,['literal',[0,54]],5,['literal',[-38,38]],6,['literal',[-54,0]],7,['literal',[-38,-38]],['literal',[0,0]]],['literal',[0,0]]]],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center',
       'symbol-sort-key':['get','prio'],
       'icon-size':['interpolate',['linear'],['zoom'],11,['match',['get','icon'],'light_major',.7,.5],14,['match',['get','icon'],'light_major',.95,.75],17,1.05]}},
-    {id:'ltLbl',type:'symbol',source:'marks',minzoom:11,filter:['!=',['coalesce',['get','lt'],''],''],layout:{'text-field':['get','lt'],'text-font':FONT_OLD,
+    {id:'ltLbl',type:'symbol',source:'marks',minzoom:11,filter:['!=',['coalesce',['get','lt'],''],''],layout:{'text-field':['get','lt'],'text-font':FONT_I,
       'text-size':['interpolate',['linear'],['zoom'],11,11,15,13],'text-optional':true,'text-max-width':16,
       'symbol-sort-key':['get','prio'],'text-variable-anchor':['left','right','top','bottom'],'text-radial-offset':1.1},
-      paint:{'text-color':'#3d2612','text-halo-color':'rgba(239,228,203,.95)','text-halo-width':1.8}},
+      paint:{'text-color':'#fff4d6','text-halo-color':'rgba(22,14,4,.92)','text-halo-width':2.2,'text-halo-blur':.3}},
     {id:'lblWater',type:'symbol',source:'omt','source-layer':'water_name',layout:{'text-field':NAME_EN,'text-font':FONT_I,'text-size':['interpolate',['linear'],['zoom'],5,11,12,14],'text-max-width':8,'symbol-placement':'point'},paint:Object.assign({'text-color':'#bfe6ff'},HALO)},
     {id:'lblIsland',type:'symbol',source:'omt','source-layer':'place',filter:['in',['get','class'],['literal',['island','islet']]],minzoom:8,layout:{'text-field':NAME_EN,'text-font':FONT_I,'text-size':12},paint:Object.assign({'text-color':'#fff5d6'},HALO)},
     {id:'lblPlace',type:'symbol',source:'omt','source-layer':'place',filter:['in',['get','class'],['literal',['city','town','village','hamlet','suburb','neighbourhood']]],
@@ -85,9 +85,9 @@ const map=new maplibregl.Map({container:'map',style,
   center:[+(qs.get('lon')||23.3219),+(qs.get('lat')||42.6977)],zoom:+(qs.get('z')||13),
   maxZoom:20,dragRotate:true,pitchWithRotate:false,touchPitch:false,fadeDuration:150,
   attributionControl:false,maxTileCacheSize:400,
-  transformRequest:u=>{const m=/\/fonts\/(IM%20Fell%20Italic|IM Fell Italic)\/(\d+)-(\d+)\.pbf/.exec(u);if(!m)return{url:u};
-    // local IM Fell covers Latin/Greek (0-1023); other scripts (Cyrillic etc.) fall back to OpenFreeMap Noto Sans Italic
-    return +m[2]<1024?{url:new URL('glyphs/IM%20Fell%20Italic/'+m[2]+'-'+m[3]+'.pbf?v=13',location.href).href}:{url:'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/'+m[2]+'-'+m[3]+'.pbf'}},refreshExpiredTiles:false});
+  transformRequest:u=>{const m=/\/fonts\/(Libre%20Caslon%20Italic|Libre Caslon Italic)\/(\d+)-(\d+)\.pbf/.exec(u);if(!m)return{url:u};
+    // local Libre Caslon Italic (lining figures) covers Latin (0-767); Greek, Cyrillic etc. fall back to OpenFreeMap Noto Sans Italic
+    return +m[2]<768?{url:new URL('glyphs/Libre%20Caslon%20Italic/'+m[2]+'-'+m[3]+'.pbf?v=16',location.href).href}:{url:'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/'+m[2]+'-'+m[3]+'.pbf'}},refreshExpiredTiles:false});
 map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-left');
 map.addControl(new maplibregl.NavigationControl({showZoom:false,visualizePitch:false}),'top-right'); // compass: tap to reset north
 map.touchZoomRotate.enableRotation();
@@ -103,7 +103,9 @@ function setOldTheme(on){
     map.setPaintProperty(id,'text-color',on?(w?'#3f5f5c':'#4a3018'):o.color);
     map.setPaintProperty(id,'text-halo-color',on?(w?'#b9cfc9':'#e9dcc0'):o.hc);
     map.setPaintProperty(id,'text-halo-width',on?1.5:o.hw);map.setPaintProperty(id,'text-halo-blur',on?0:o.hb);}
-  map.setPaintProperty('ltLbl','text-halo-color',on?'#e9dcc0':'rgba(239,228,203,.95)');map.setPaintProperty('ltLbl','text-halo-width',on?1.4:1.8);
+  map.setPaintProperty('ltLbl','text-halo-color',on?'#e9dcc0':'rgba(22,14,4,.92)');map.setPaintProperty('ltLbl','text-halo-width',on?1.4:2.2);
+  map.setPaintProperty('ltLbl','text-color',on?'#3d2612':'#fff4d6');map.setLayoutProperty('ltLbl','text-font',on?FONT_OLD:FONT_I);
+  map.setLayoutProperty('marks','icon-image',['concat',on?'':'D_',['get','icon']]);
   // depth contours: light cyan on satellite, sepia/teal on old chart
   map.setPaintProperty('dcont','line-color',on?['case',['<=',['get','depth'],10],'#2f6f6a','#6b4a2b']:'#bff4ff');
   map.setPaintProperty('dcontS','line-color',on?'#2f6f6a':'#bff4ff');
@@ -484,14 +486,32 @@ function classify2(t){const st=t['seamark:type']||'';
   if(kind==='isolated_danger')return'isolated';if(kind==='safe_water')return'safe';if(kind==='special_purpose')return'special';return'beacon'}
 
 
-return{E,KEYS,lightLabel,classify2}})();
-for(const k of SE.KEYS)ICONS[k]=SE.E(k);
+return{D,E,KEYS,lightLabel,classify2}})();
+for(const k of SE.KEYS){ICONS[k]=SE.E(k);ICONS['D_'+k]=SE.D(k)}
+// secondary POIs in matching styles: E (antique ink) and D (illustrated)
+{const I='#4a3018',w=(a,b,c)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${a}" height="${b}" viewBox="0 0 ${a} ${b}">${c}</svg>`;
+ const anc=(c,sw)=>`<g fill="none" stroke="${c}" stroke-width="${sw}" stroke-linecap="round"><circle cx="18" cy="9.5" r="2.4"/><path d="M18 12v15M13.5 15.5h9M10.5 21.5c1 4.5 4 6.5 7.5 6.5s6.5-2 7.5-6.5"/></g>`;
+ const POI_E={
+  harbour:w(36,36,`<circle cx="18" cy="18" r="15" fill="#efe4cb" stroke="${I}" stroke-width="1.2"/><circle cx="18" cy="18" r="12.5" fill="none" stroke="${I}" stroke-width=".6"/><g transform="translate(3.6 3.4) scale(.8)">${anc(I,1.8)}</g>`),
+  anchorage:w(36,36,anc('#7a3b5a',2.1)),
+  marina:w(36,36,`<path d="M18.5 5v20" stroke="${I}" stroke-width="1.2"/><path d="M18 6.5L8.5 23h9.5z" fill="#efe4cb" stroke="${I}" stroke-width="1"/><path d="M19.5 9l7.5 14h-7.5z" fill="#d9c7a0" stroke="${I}" stroke-width="1"/><path d="M8 26h21l-3 4H11z" fill="#9b3b26" stroke="${I}" stroke-width="1"/><path d="M5 32q3-2 6 0t6 0 6 0 6 0 6 0" stroke="${I}" stroke-width=".9" fill="none"/>`),
+  mooring:w(30,30,`<circle cx="15" cy="17" r="7" fill="#efe4cb" stroke="${I}" stroke-width="1.3"/><circle cx="15" cy="8" r="3" fill="none" stroke="${I}" stroke-width="1.3"/><path d="M8 17h14" stroke="${I}" stroke-width=".8"/>`),
+  fuel:w(32,36,`<rect x="8" y="8" width="12" height="22" rx="1.5" fill="#efe4cb" stroke="${I}" stroke-width="1.3"/><rect x="10.5" y="11" width="7" height="6" fill="none" stroke="${I}"/><path d="M20 13h3.5v12a2 2 0 004 0V15l-3-4" fill="none" stroke="${I}" stroke-width="1.3"/><path d="M6 30h16" stroke="${I}" stroke-width="1.6"/><text x="14" y="27" font-family="Georgia,serif" font-style="italic" font-size="6" text-anchor="middle" fill="${I}">F</text>`)};
+ const gr=(id,a,b)=>`<radialGradient id="${id}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></radialGradient>`;
+ const ball=(id,a,b,inner)=>w(36,36,`<defs>${gr(id,a,b)}</defs><circle cx="18" cy="18" r="14.5" fill="url(#${id})" stroke="#fff" stroke-width="2"/>${inner}`);
+ const POI_D={
+  harbour:ball('h','#4f8fe0','#123f86',`<g transform="translate(3.6 3.6) scale(.8)">${anc('#fff',2.6)}</g>`),
+  anchorage:ball('a','#a46ad1','#4a1d73',`<g transform="translate(3.6 3.6) scale(.8)">${anc('#fff',2.6)}</g>`),
+  marina:ball('m','#4fc3f7','#01579b','<path d="M18.5 8v15" stroke="#fff" stroke-width="1.4"/><path d="M18 9l-7 13h7z" fill="#fff"/><path d="M19.5 11l6 11h-6z" fill="#e3f2fd"/><path d="M10 24h16l-2.5 3.5h-11z" fill="#ffb74d"/>'),
+  mooring:w(30,32,`<defs>${gr('o','#ffb74d','#e65100')}</defs><circle cx="15" cy="19" r="8" fill="url(#o)" stroke="#fff" stroke-width="1.5"/><circle cx="15" cy="8.5" r="3.2" fill="none" stroke="#eceff1" stroke-width="2"/><path d="M6 27q3-2 6 0t6 0 6 0" stroke="#bfe9ff" stroke-width="1.3" fill="none"/>`),
+  fuel:ball('f','#66bb6a','#1b5e20','<rect x="12" y="10" width="10" height="17" rx="1.5" fill="#fff"/><rect x="14" y="12.5" width="6" height="4.5" fill="#2e7d32"/><path d="M22 14h2.5v8.5a1.6 1.6 0 003.2 0V15.5l-2.5-3" stroke="#fff" stroke-width="1.8" fill="none"/>')};
+ for(const k in POI_E){ICONS[k]=POI_E[k];ICONS['D_'+k]=POI_D[k]}}
 // iOS Safari: SVG data-URL images with <filter> rendered to canvas silently fail/taint (getImageData throws) and the
 // old code swallowed the error, so no icon was ever registered. Now: filter-free SVG with explicit size, decode(),
 // shadow drawn by canvas, HTMLImageElement fallback, and a 'styleimagemissing' safety net.
 function addIcon(k,img){const r=2,w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
   try{const c=document.createElement('canvas');c.width=w*r;c.height=h*r;const x=c.getContext('2d');
-    x.shadowColor='rgba(239,228,203,.95)';x.shadowBlur=4*r;x.shadowOffsetY=0;for(let i=0;i<6;i++)x.drawImage(img,0,0,c.width,c.height);
+    if(k.startsWith('D_')){x.shadowColor='rgba(0,0,0,.55)';x.shadowBlur=3*r;x.shadowOffsetY=1.2*r;x.drawImage(img,0,0,c.width,c.height)}else{x.shadowColor='rgba(239,228,203,.95)';x.shadowBlur=4*r;x.shadowOffsetY=0;for(let i=0;i<6;i++)x.drawImage(img,0,0,c.width,c.height)}
     x.shadowColor='transparent';x.drawImage(img,0,0,c.width,c.height);
     const d=x.getImageData(0,0,c.width,c.height);if(!map.hasImage(k))map.addImage(k,{width:c.width,height:c.height,data:new Uint8Array(d.data.buffer)},{pixelRatio:r});return true}
   catch(e){console.warn('icon canvas failed',k,e)}
@@ -575,12 +595,12 @@ const GR_BB=[19.3,34.5,29.7,41.8];let staticFeats=null,staticState='idle';
 const inGreece=b=>b.getEast()>GR_BB[0]&&b.getWest()<GR_BB[2]&&b.getNorth()>GR_BB[1]&&b.getSouth()<GR_BB[3];
 async function loadStatic(){if(staticState!=='idle')return;staticState='loading';setStatus('Loading seamarks…');
   let lastErr='';
-  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=13',{credentials:'same-origin',cache:'no-cache'});
+  for(let a=0;a<3;a++){try{const r=await fetch('data/seamarks-gr.geojson?v=16',{credentials:'same-origin',cache:'no-cache'});
       if(r.redirected&&!new URL(r.url).pathname.endsWith('.geojson'))throw new Error('redirected to '+new URL(r.url).host+new URL(r.url).pathname);
       if(!r.ok)throw new Error('HTTP '+r.status+(r.status===401||r.status===403?' (site login/access)':''));
       const txt=await r.text();let d;try{d=JSON.parse(txt)}catch(_){throw new Error('bad data ('+(r.headers.get('content-type')||'?')+'): '+txt.slice(0,40))}
-      staticFeats=[];for(const f of d.features){const p=f.properties,t={};for(const k in p)if(k!=='id')t[k[0]==='~'?'seamark:'+k.slice(1):k]=p[k];
-        const c=classify(t);if(!c)continue;markById.set(p.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:p.id,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):''}})}
+      staticFeats=[];for(const f of d.features){const p=f.properties,t={};for(const k in p)if(k!=='id'&&k!=='_od'&&k!=='_oz')t[k[0]==='~'?'seamark:'+k.slice(1):k]=p[k];
+        const c=classify(t);if(!c)continue;markById.set(p.id,t);staticFeats.push({type:'Feature',geometry:f.geometry,properties:{id:p.id,od:p._od==null?-1:p._od,oz:p._oz||0,icon:c[0],kind:c[1],prio:-c[2],lt:/^light/.test(c[0])?SE.lightLabel(t):''}})}
       staticState='ready';refreshMarks();setTimeout(()=>loadMarks(true),300);return}
     catch(e){lastErr=e&&e.message||String(e);console.warn('static seamarks',e);setStatus('Seamarks failed: '+lastErr+' – retrying…');await new Promise(r=>setTimeout(r,1500))}}
   staticState='failed';setStatus('Seamarks failed: '+lastErr)}
