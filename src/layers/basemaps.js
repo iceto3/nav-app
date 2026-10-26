@@ -1,5 +1,5 @@
 /** @file Background + raster base maps (Satellite, Topo, OSM). */
-import { registerFeature } from '../core/registry.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
 
 registerFeature({
   id: 'basemaps',

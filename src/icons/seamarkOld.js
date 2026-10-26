@@ -1,5 +1,5 @@
 /** @file Icon set E: antique engraved (sepia ink, hatching) for the Old chart (ids without prefix). */
-import { W, R, G, Y, K, Wh, bandsOf, topmarkFor, shapeOf } from './svg.js?v=34';
+import { W, R, G, Y, K, Wh, bandsOf, topmarkFor, shapeOf } from './svg.js?v=35';
 
 const INK='#4a3018',VER='#9b3b26',VERD='#3f6f5f',OCH='#b8862b';
 /** @param {string} k seamark key @returns {string} SVG */

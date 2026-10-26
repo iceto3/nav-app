@@ -5,7 +5,7 @@
  */
 
 /** App version shown in the badge and compared by the auto-update check. Bumped by scripts/bump-version.sh. */
-export const APP_VERSION = 'v34';
+export const APP_VERSION = 'v35';
 /** Cache-buster appended to bundled data/style/script URLs (digits of APP_VERSION). */
 export const CACHE_V = APP_VERSION.replace(/\D/g, '');
 
@@ -84,10 +84,53 @@ export const NAV = {
 };
 
 /** Own-position display. */
-export const LOCATION = { jumpZoom: 16, followZoom: 16, navZoom: 17, destZoom: 15, stepZoom: 17, maxAccuracyPx: 300, minSpeedForHeading: 0.5 };
+export const LOCATION = { jumpZoom: 16, followZoom: 16, navZoom: 17, destZoom: 15, stepZoom: 17, maxAccuracyPx: 300 };
 
 /** Range rings (NM). */
 export const RINGS = { stepsNm: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 50], maxPerHalf: 5.5, fallbackNm: 100, max: 6, segments: 96, reach: 1.25 };
 
 /** Toast / status durations (ms). */
 export const TIMING = { toastMs: 2500, statusMs: 2500, zoomHintMs: 4000, errorToastMs: 12000, autoUpdateDelayMs: 3000 };
+
+/**
+ * Motion from GPS (v35): course over ground (COG), speed over ground (SOG) and "moving" detection.
+ * Used by location/motion.js (tracker), location/courseLine.js, ui/motionPanel.js and the ring ETAs.
+ */
+export const MOTION = {
+  /** Moving when smoothed SOG rises above this (kn): COG drives the boat marker, course line shown. */
+  movingKn: 1.0,
+  /** ...and stationary again when it falls below this (kn). Hysteresis avoids flicker around 1 kn. */
+  stoppedKn: 0.8,
+  /** Bearing between successive track fixes only once they are at least this far apart (m). */
+  minFixDistanceM: 12,
+  /** Fixes with a worse reported accuracy (m) are ignored for COG/SOG. */
+  maxAccuracyM: 50,
+  /** COG = circular mean of the bearing samples of the last windowMs, at most windowSize samples. */
+  cogWindowMs: 10000,
+  cogWindowSize: 5,
+  /** SOG smoothing: exponential, time constant (s). */
+  sogTauS: 4,
+  /**
+   * Computed speed (no device speed): displacement from the last track anchor over the elapsed
+   * time, once the fixes are minFixDistanceM apart or at least minSpeedDtS (s) have passed.
+   * Displacements below the fix accuracy (or jitterM when unknown) count as standing still.
+   */
+  minSpeedDtS: 3,
+  jitterM: 5,
+  /** No fix for this long (ms): COG/SOG fall back to "no data". */
+  staleMs: 20000,
+};
+
+/** Course line (v35): straight COG line from the bow, projected past the screen edge. */
+export const COURSE_LINE = {
+  /** Distance from the marker centre to the bow (CSS px; boat SVG is 32 px tall). */
+  bowPx: 15,
+  /** Line length = (boat-to-screen-centre distance + viewport diagonal) × this. */
+  overshoot: 1.25,
+};
+
+/** Range ring ETA labels (v35). */
+export const ETA = {
+  /** Above this many hours the ETA is shown as "> N h". */
+  maxHours: 99,
+};

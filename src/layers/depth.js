@@ -2,8 +2,8 @@
  * @file Depth: EMODnet WMS rasters (multicolour depth, contours) and own vector depth bands/contours
  * (EMODnet DTM 2024, CC-BY 4.0, served as PMTiles). Light cyan on satellite, sepia/teal on Old chart.
  */
-import { registerFeature } from '../core/registry.js?v=34';
-import { FONTS } from '../config.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
+import { FONTS } from '../config.js?v=35';
 
 const FONT_I = FONTS.italic, FONT_OLD = FONTS.old;
 

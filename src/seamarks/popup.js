@@ -1,8 +1,8 @@
 /** @file Tap popups for seamarks/POIs (suppressed while the editor has an edit mode active). */
-import { markById } from './store.js?v=34';
-import { CAT_BG, lightText } from './classify.js?v=34';
-import { esc } from '../core/dom.js?v=34';
-import { state } from '../core/state.js?v=34';
+import { markById } from './store.js?v=35';
+import { CAT_BG, lightText } from './classify.js?v=35';
+import { esc } from '../core/dom.js?v=35';
+import { state } from '../core/state.js?v=35';
 
 /** Symbol layers that open a popup on tap. */
 export const POPUP_LAYERS = ['marks', 'pois'];

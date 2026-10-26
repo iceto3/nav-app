@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { BASE_URL, REF_URL, collectErrors, openApp } from './helpers.js';
+import { APP_VERSION, BASE_URL, REF_URL, collectErrors, openApp } from './helpers.js';
 
 test.describe.configure({ mode: 'serial' }); // apply.py test uses the export of the editor test
 
@@ -62,17 +62,17 @@ test('editor: modes, draw + Finish, export identical in format to v33', async ({
   expect(a.modes.map(m => m[1])).toEqual(expect.arrayContaining([expect.any(String)]));
   expect(a.lines).toBe(b.lines); expect(JSON.parse(a.lines).length).toBeGreaterThan(0);
   expect(a.panelHidden).toBe(true);
-  expect(a.ex.version).toBe('v34'); expect(b.ex.version).toBe('v33');
+  expect(a.ex.version).toBe(APP_VERSION); expect(b.ex.version).toBe('v33');
   expect(shape(a.ex)).toEqual(shape(b.ex));
   // same taps on the same map -> same snapped geometry
   const coords = ex => ex.features.map(f => JSON.stringify(f.geometry.coordinates));
   expect(coords(a.ex)).toEqual(coords(b.ex));
-  fs.writeFileSync(path.join(os.tmpdir(), 'v34-editor-export.geojson'), JSON.stringify(a.ex));
+  fs.writeFileSync(path.join(os.tmpdir(), 'current-editor-export.geojson'), JSON.stringify(a.ex));
 });
 
-test('devedits/apply.py accepts a v34 export (throwaway copies) @local-only', async () => {
+test('devedits/apply.py accepts the current export (throwaway copies) @local-only', async () => {
   const PY = '/workspace/.venv-geo/bin/python', DEV = '/workspace/devedits';
-  const exp = path.join(os.tmpdir(), 'v34-editor-export.geojson');
+  const exp = path.join(os.tmpdir(), 'current-editor-export.geojson');
   test.skip(!fs.existsSync(PY) || !fs.existsSync(DEV) || !fs.existsSync(exp), 'needs the venv, devedits and the export from the editor test');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'apply-'));
   fs.cpSync(DEV, path.join(tmp, 'devedits'), { recursive: true, filter: s => !s.includes('__pycache__') });

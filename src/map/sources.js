@@ -2,8 +2,8 @@
  * @file Ordered catalog of all MapLibre sources. Order is significant (it fixes the attribution order).
  * New sources: add here, then reference the id from a layer module.
  */
-import { URLS, ATTRIBUTION as A, DATA_FILES, CACHE_V } from '../config.js?v=34';
-import { assetUrl } from '../core/dom.js?v=34';
+import { URLS, ATTRIBUTION as A, DATA_FILES, CACHE_V } from '../config.js?v=35';
+import { assetUrl } from '../core/dom.js?v=35';
 
 /** PMTiles URL for a bundled file (HTTP range requests through the pmtiles:// protocol). @param {string} f */
 export const pmtilesUrl = f => 'pmtiles://' + assetUrl('data/' + f + '?v=' + CACHE_V);

@@ -3,8 +3,8 @@
  * breakwaters and piers from data/coast.pmtiles (v23), with engraved ripple lines along the coast.
  * All layers start hidden; the layer switcher shows them via BASES.old.
  */
-import { registerFeature } from '../core/registry.js?v=34';
-import { COLORS } from '../config.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
+import { COLORS } from '../config.js?v=35';
 
 const OLD_INK = COLORS.oldInk;
 /** Ripple lines [offset px, opacity] drawn seaward of a coastline. */

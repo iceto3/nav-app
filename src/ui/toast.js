@@ -1,6 +1,6 @@
 /** @file Bottom toast (#toast). */
-import { $ } from '../core/dom.js?v=34';
-import { TIMING } from '../config.js?v=34';
+import { $ } from '../core/dom.js?v=35';
+import { TIMING } from '../config.js?v=35';
 
 let timer = 0;
 /** Show a short message. @param {string} t @param {number} [ms] */

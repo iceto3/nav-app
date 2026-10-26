@@ -1,7 +1,7 @@
 /** @file Place search (Nominatim: submit only, max 1 request/s, biased to the current view). */
-import { URLS, SEARCH } from '../config.js?v=34';
-import { $ } from '../core/dom.js?v=34';
-import { setDest } from '../route/router.js?v=34';
+import { URLS, SEARCH } from '../config.js?v=35';
+import { $ } from '../core/dom.js?v=35';
+import { setDest } from '../route/router.js?v=35';
 
 /** @param {any} map */
 export function initSearch(map) {

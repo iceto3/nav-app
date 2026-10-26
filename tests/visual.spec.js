@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 import { PNG } from 'pngjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import { BASE_URL, REF_URL, PLACES, ZOOMS, MASK, openApp } from './helpers.js';
+import { APP_VERSION, BASE_URL, REF_URL, PLACES, ZOOMS, MASK, openApp } from './helpers.js';
 
 const PIX_TOL = 16, MAX_RATIO = 0.001;
 const OUT = path.resolve(import.meta.dirname, '__output__', 'visual');
@@ -34,9 +34,9 @@ for (const base of ['old', 'sat']) for (const [name, lat, lon] of PLACES) for (c
     if (r.ratio > MAX_RATIO) { // one retry: remote raster tiles occasionally arrive late
       const [a2, b2] = await Promise.all([shot(BASE_URL), shot(REF_URL)]); r = diff(a2, b2);
       if (r.ratio > MAX_RATIO) { fs.mkdirSync(OUT, { recursive: true }); const f = `${name}-z${z}-${base}`;
-        fs.writeFileSync(path.join(OUT, f + '-v34.png'), a2); fs.writeFileSync(path.join(OUT, f + '-v33.png'), b2); if (r.png) fs.writeFileSync(path.join(OUT, f + '-diff.png'), r.png); }
+        fs.writeFileSync(path.join(OUT, f + `-${APP_VERSION}.png`), a2); fs.writeFileSync(path.join(OUT, f + '-v33.png'), b2); if (r.png) fs.writeFileSync(path.join(OUT, f + '-diff.png'), r.png); }
     }
-    if (process.env.SAVE_SHOTS) { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, `${name}-z${z}-${base}-v34.png`), a); }
+    if (process.env.SAVE_SHOTS) { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, `${name}-z${z}-${base}-${APP_VERSION}.png`), a); }
     expect(r.colours, 'screenshot has real map content').toBeGreaterThan(40);
     fs.mkdirSync(OUT, { recursive: true }); fs.appendFileSync(path.join(OUT, 'ratios.tsv'), `${name}\tz${z}\t${base}\t${r.ratio.toFixed(6)}\t${r.colours}\n`);
     test.info().annotations.push({ type: 'diffRatio', description: r.ratio.toFixed(6) });

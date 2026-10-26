@@ -2,13 +2,13 @@
  * @file Destination, routing (OSRM), route panel and step list.
  * A destination is set by search, right-click or long-press ("Dropped pin"; suppressed while the editor is editing).
  */
-import { URLS, NAV, LOCATION } from '../config.js?v=34';
-import { state } from '../core/state.js?v=34';
-import { $ } from '../core/dom.js?v=34';
-import { toast } from '../ui/toast.js?v=34';
-import { startWatch } from '../location/boat.js?v=34';
-import { fmtDist, fmtTime } from './format.js?v=34';
-import { instr } from './instructions.js?v=34';
+import { URLS, NAV, LOCATION } from '../config.js?v=35';
+import { state } from '../core/state.js?v=35';
+import { $ } from '../core/dom.js?v=35';
+import { toast } from '../ui/toast.js?v=35';
+import { startWatch } from '../location/boat.js?v=35';
+import { fmtDist, fmtTime } from './format.js?v=35';
+import { instr } from './instructions.js?v=35';
 
 const ROUTERS = URLS.routers;
 const EMPTY = { type: 'FeatureCollection', features: [] };

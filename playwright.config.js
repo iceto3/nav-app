@@ -1,4 +1,4 @@
-// Playwright config. Local: serves this checkout (v34) and a v33 reference copy (REF_DIR) with Range support.
+// Playwright config. Local: serves this checkout (current version) and a v33 reference copy (REF_DIR) with Range support.
 // Live: BASE_URL=https://iceto3.github.io/nav-app/ npm run test:live (skips @local-only tests; the v33 reference is still served locally).
 import { defineConfig } from '@playwright/test';
 

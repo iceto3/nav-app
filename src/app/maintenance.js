@@ -3,7 +3,7 @@
  * Auto-update fetches the root app.js and reads the literal APP_VERSION='vNN' marker (v33 clients rely on that
  * exact pattern, so app.js must keep it). A newer version reloads once per version with ?_v= cache-busting.
  */
-import { APP_VERSION, TIMING } from '../config.js?v=34';
+import { APP_VERSION, TIMING } from '../config.js?v=35';
 
 /** Unregister any service worker and clear Cache Storage (stale-cache issues on the old Netlify site). */
 export function cleanupCaches() {

@@ -1,5 +1,5 @@
 /** @file Icon set D: illustrated 3D-ish lighthouses and buoys (Satellite and other modern bases; ids prefixed 'D_'). */
-import { W, bandsOf, topmarkFor, shapeOf } from './svg.js?v=34';
+import { W, bandsOf, topmarkFor, shapeOf } from './svg.js?v=35';
 
 /** @param {string} k seamark key @returns {string} SVG */
 export function seamarkSat(k){const g=(id,c1,c2)=>`<linearGradient id="${id}" x1="0" x2="1"><stop offset="0" stop-color="${c2}"/><stop offset=".45" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>`;

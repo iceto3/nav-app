@@ -1,9 +1,9 @@
 /**
  * @file Creates the MapLibre map (style from the feature registry + source catalog), controls and glyph routing.
  */
-import { URLS, START_VIEW, MAP_OPTIONS, FONTS, ASSET_REV } from '../config.js?v=34';
-import { buildSources } from './sources.js?v=34';
-import { collectLayers } from '../core/registry.js?v=34';
+import { URLS, START_VIEW, MAP_OPTIONS, FONTS, ASSET_REV } from '../config.js?v=35';
+import { buildSources } from './sources.js?v=35';
+import { collectLayers } from '../core/registry.js?v=35';
 
 /** Route Libre Caslon Italic glyphs to the bundled copy (Latin ranges), else to OpenFreeMap Noto Sans Italic. */
 function transformRequest(u) {

@@ -3,15 +3,15 @@
  * Anything not listed here is private to the modules. Keep this surface small and stable:
  * add to it deliberately and document changes in ARCHITECTURE.md.
  */
-import { APP_VERSION } from './config.js?v=34';
-import { state } from './core/state.js?v=34';
-import { on } from './core/events.js?v=34';
-import { classify } from './seamarks/classify.js?v=34';
-import { markById, refreshMarks, getStaticFeatures, getDeletedIds, stats } from './seamarks/store.js?v=34';
-import { caseLayer, shoreLayers, contourLayers, applyUserEditTheme, PIER_RADIUS_M } from './layers/userEdits.js?v=34';
-import { showError } from './core/errorReporter.js?v=34';
-import { featureIds } from './core/registry.js?v=34';
-import { ICONS } from './icons/index.js?v=34';
+import { APP_VERSION } from './config.js?v=35';
+import { state } from './core/state.js?v=35';
+import { on } from './core/events.js?v=35';
+import { classify } from './seamarks/classify.js?v=35';
+import { markById, refreshMarks, getStaticFeatures, getDeletedIds, stats } from './seamarks/store.js?v=35';
+import { caseLayer, shoreLayers, contourLayers, applyUserEditTheme, PIER_RADIUS_M } from './layers/userEdits.js?v=35';
+import { showError } from './core/errorReporter.js?v=35';
+import { featureIds } from './core/registry.js?v=35';
+import { ICONS } from './icons/index.js?v=35';
 
 let userEditsData = null;
 on('useredits', e => { userEditsData = e.detail; });

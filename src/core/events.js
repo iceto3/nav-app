@@ -1,6 +1,7 @@
 /**
  * @file Tiny app-wide event bus (a shared EventTarget).
- * Events: 'themechange' {detail:{old:boolean}}, 'marksready', 'useredits' {detail:FeatureCollection}.
+ * Events: 'themechange' {detail:{old:boolean}}, 'marksready', 'useredits' {detail:FeatureCollection},
+ * 'position', 'tracking', 'fix', 'motion' (see the table in ARCHITECTURE.md).
  */
 export const bus = new EventTarget();
 

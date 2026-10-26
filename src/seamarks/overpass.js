@@ -2,7 +2,7 @@
  * @file Live seamarks outside Greece: one Overpass request for the bounding box of all missing 0.1° cells,
  * rotating over mirror endpoints, with rate-limit backoff.
  */
-import { URLS, SEAMARKS } from '../config.js?v=34';
+import { URLS, SEAMARKS } from '../config.js?v=35';
 
 const OVERPASS = URLS.overpass, CELL = SEAMARKS.cellDeg;
 let epIdx = 0;

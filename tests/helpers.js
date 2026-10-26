@@ -1,7 +1,9 @@
-// Shared test helpers: open the app (v34 or the v33 reference), wait until map + seamarks are settled, collect errors.
+// Shared test helpers: open the app (current version or the v33 reference), wait until map + seamarks are settled, collect errors.
 import { BASE_URL, REF_URL } from '../playwright.config.js';
+import { APP_VERSION } from '../src/config.js';
 
-export { BASE_URL, REF_URL };
+/** Version under test (src/config.js; bumped by scripts/bump-version.sh). */
+export { BASE_URL, REF_URL, APP_VERSION };
 /** Places used for visual parity: [name, lat, lon]. */
 export const PLACES = [['Lefkada', 38.8300, 20.7100], ['Limenaria', 40.6280, 24.5770], ['Thessaloniki', 40.6330, 22.9380], ['Skiathos', 39.1620, 23.4900]];
 export const ZOOMS = [10, 13, 15, 17];

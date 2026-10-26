@@ -17,7 +17,7 @@ src/
   core/                no map/DOM knowledge of features
     registry.js        registerFeature(), LAYER_SLOTS (z-order), collectLayers(), applyThemes(), runOnLoad()
     events.js          app event bus: emit()/on()
-    state.js           shared runtime state (oldChart, editing, me, heading, follow, navigating)
+    state.js           shared runtime state (oldChart, editing, me, heading, cog, sog, moving, follow, navigating)
     dom.js geo.js errorReporter.js
   map/
     sources.js         ordered source catalog (order = attribution order)
@@ -35,9 +35,16 @@ src/
     classify.js        OSM tags -> [icon, kind, priority], light labels (pure)
     store.js           bundled + live data, harbour dedupe, user-edit hide/pin, 'marks' source updates
     overpass.js popup.js
-  location/            boat.js (GPS, compass, marker, follow), rings.js (range rings feature)
+  location/            own position and motion
+    boat.js            GPS watch, compass, marker, follow; emits 'tracking', 'fix', 'position'
+    rings.js           range rings feature (labels "1 NM · 12 min" while moving)
+    motionMath.js      pure maths: bearing, circular mean, time-aware smoothing, knots (v35)
+    motion.js          COG/SOG tracker (pure) + initMotion(): 'fix' -> state.cog/sog/moving -> 'motion' (v35)
+    courseLine.js      course line feature: bow -> past the screen edge along COG (v35)
+    navFormat.js       "COG 237°", "SOG 5.4 kn", ETA "1 h 05 min", ring labels (pure, v35)
   route/               router.js (destination, OSRM, panel), navigation.js (guidance, voice), instructions.js, format.js
   ui/                  DOM controls: zoomSlider scaleBar layerSwitcher search statusPill versionBadge toast oldDecor depthNote
+                       motionPanel (COG/SOG read-out, v35)
   app/maintenance.js   service-worker/cache cleanup, auto-update
 editor/                developer editor (separate page, ES module, uses only window.NavApp)
 tests/                 Playwright suite + static server with Range support
@@ -63,7 +70,10 @@ scripts/               deploy.sh, bump-version.sh, gen-preload.mjs, measure-load
 | `overlaychange` | `{key, on}` | ui/layerSwitcher.js |
 | `useredits` | bundled user-edits FeatureCollection | seamarks/store.js |
 | `marksready` | – | main.js (icons registered) |
-| `position` | `[lat, lon]` | location/boat.js |
+| `position` | `[lat, lon]` | location/boat.js (after the marker moved) |
+| `tracking` | `{on}` | location/boat.js (GPS watch started) |
+| `fix` | `{lat, lon, t, speed, heading, accuracy}` (raw fix; speed m/s, may be null) | location/boat.js (before the marker moves) |
+| `motion` | `{moving, cog, sog, lastCog, speedKn}` (cog/sog null while stationary) | location/motion.js |
 
 ## Editor API (`window.NavApp`, frozen)
 
@@ -79,6 +89,31 @@ scripts/               deploy.sh, bump-version.sh, gen-preload.mjs, measure-load
 
 Change this surface deliberately and update this table.
 
+## Motion: COG, SOG, course line (v35)
+
+All thresholds are in `config.js` (`MOTION`, `COURSE_LINE`, `ETA`).
+
+```
+geolocation fix -> boat.js onPos: state.me, emit('fix')
+                     -> motion.js tracker -> state.cog / state.sog / state.moving (+ state.heading while moving)
+                     -> emit('motion') -> courseLine.js (line), rings.js (ETA labels), ui/motionPanel.js
+                   -> marker moved and rotated by state.heading, emit('position')
+```
+
+- **SOG**: the fix's own speed when the device reports one, else the displacement from the last track point over
+  the elapsed time (jitter smaller than the fix accuracy counts as zero). Exponential smoothing, `MOTION.sogTauS`.
+- **COG**: the device course when its speed is above `MOTION.movingKn`, else the bearing between track points at
+  least `MOTION.minFixDistanceM` apart; circular mean of the last `cogWindowSize` samples within `cogWindowMs`.
+- **Moving** above `movingKn` (1 kn), stationary again below `stoppedKn` (0.8 kn). While moving the boat marker
+  points along COG and the compass is ignored; stationary, the compass turns it (if any), else the last COG stays.
+- **Course line** (`courseLine` source, `courseLineCase` + `courseLine` layers, below `dots`): built in Web Mercator,
+  so it is a straight rhumb line. Length = (boat-to-centre + viewport diagonal) × `COURSE_LINE.overshoot`, recomputed
+  on 'motion' and on map move/zoom/resize (at most once per frame). The source and layers are added on the first
+  moving fix only, so the style without location stays identical to v33 (style and pixel parity tests).
+- **Panel** `#motionPanel` (style.css): top-left below the version badge, inside the safe areas; hidden until the
+  GPS watch starts; "—" while stationary or without data. `tests/course.spec.js` checks it overlaps no control.
+- No fix for `MOTION.staleMs`: the tracker resets (no data, marker keeps its heading).
+
 ## Startup order (main.js)
 
 The order matches v33 so that DOM stacking and behaviour stay identical:
@@ -88,7 +123,8 @@ The order matches v33 so that DOM stacking and behaviour stay identical:
 3. oldDecor, zoom slider, scale bar, layer switcher, location, search, router/navigation, status pill, version badge
 4. ring hooks, missing-image fallback, seamark store, popups
 5. icons → POI PNGs → dots → rings → re-theme if Old chart → `marksready` → first seamark load
-6. API, cache cleanup, initial base, auto-update
+6. motion tracker, course line, motion panel (v35; appended after the v33 order)
+7. API, cache cleanup, initial base, auto-update
 
 ## Known quirks kept on purpose (pixel parity with v33)
 - The scale bar uses 156543.03392 m/px at z0, while the accuracy circle and range rings use 40075016.686/(512·2^z). Both are kept.

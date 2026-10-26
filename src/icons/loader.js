@@ -4,8 +4,8 @@
  * filter-free SVG with explicit size, decode(), shadow drawn by canvas, HTMLImageElement fallback,
  * and a 'styleimagemissing' safety net. Raster POI icons come from icons/poi/*.png.
  */
-import { ICONS } from './index.js?v=34';
-import { ASSET_REV } from '../config.js?v=34';
+import { ICONS } from './index.js?v=35';
+import { ASSET_REV } from '../config.js?v=35';
 
 /** Device pixel ratio used for rasterised icons. */
 const ICON_RATIO = 2;

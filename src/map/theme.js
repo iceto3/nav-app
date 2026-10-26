@@ -2,12 +2,12 @@
  * @file Base switching and the Old chart theme.
  * setOldTheme runs every registered feature's applyTheme hook (see core/registry.js) and emits 'themechange'.
  */
-import { BASES } from './bases.js?v=34';
-import { applyThemes } from '../core/registry.js?v=34';
-import { state } from '../core/state.js?v=34';
-import { emit } from '../core/events.js?v=34';
-import { drawScale } from '../ui/scaleBar.js?v=34';
-import { applyUserEditTheme } from '../layers/userEdits.js?v=34';
+import { BASES } from './bases.js?v=35';
+import { applyThemes } from '../core/registry.js?v=35';
+import { state } from '../core/state.js?v=35';
+import { emit } from '../core/events.js?v=35';
+import { drawScale } from '../ui/scaleBar.js?v=35';
+import { applyUserEditTheme } from '../layers/userEdits.js?v=35';
 
 /**
  * Apply/remove the Old chart theme (body.oldchart, scale bar, all feature themes).

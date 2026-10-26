@@ -1,5 +1,5 @@
 /** @file Small version badge (#appVer) top-left. */
-import { APP_VERSION } from '../config.js?v=34';
+import { APP_VERSION } from '../config.js?v=35';
 
 export function initVersionBadge() {
   const v = document.createElement('div'); v.id = 'appVer'; v.textContent = APP_VERSION;

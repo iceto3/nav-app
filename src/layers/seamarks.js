@@ -7,8 +7,8 @@
  *  - 'ltLbl'   z13+: light characteristics labels
  * Icon ids: 'D_<icon>' = satellite/illustrated set, '<icon>' = Old chart engraved set ('ls' = light colour suffix).
  */
-import { registerFeature } from '../core/registry.js?v=34';
-import { FONTS } from '../config.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
+import { FONTS } from '../config.js?v=35';
 
 /** Secondary POI icon ids (never in 'marks'). */
 export const POI_ICONS = ['shop', 'p_grocery', 'p_hardware', 'p_gshop', 'p_pharmacy', 'p_rest', 'p_fishrest', 'p_steak', 'p_service', 'p_hospital', 'p_medical'];

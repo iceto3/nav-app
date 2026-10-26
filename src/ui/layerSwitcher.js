@@ -2,9 +2,9 @@
  * @file Layer switcher (🗺): base map radios and overlay checkboxes.
  * Emits 'overlaychange' {key, on} so features can react (depth note, seamark loading) without coupling to the UI.
  */
-import { BASES, OVERLAYS } from '../map/bases.js?v=34';
-import { switchBase } from '../map/theme.js?v=34';
-import { emit } from '../core/events.js?v=34';
+import { BASES, OVERLAYS } from '../map/bases.js?v=35';
+import { switchBase } from '../map/theme.js?v=35';
+import { emit } from '../core/events.js?v=35';
 
 /** @param {any} map @param {string} initBase */
 export function initLayerSwitcher(map, initBase) {

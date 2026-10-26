@@ -9,8 +9,14 @@ export const state = {
   editing: false,
   /** Own position [lat, lon] or null. */
   me: null,
-  /** Compass/GPS heading in degrees or null. */
+  /** Marker heading in degrees or null: COG while moving, else compass (or the last COG). */
   heading: null,
+  /** Smoothed course over ground (degrees) while moving, else null (location/motion.js). */
+  cog: null,
+  /** Smoothed speed over ground (kn) while moving, else null (location/motion.js). */
+  sog: null,
+  /** SOG above the MOTION.movingKn threshold (location/motion.js). */
+  moving: false,
   /** Map follows own position. */
   follow: false,
   /** Turn-by-turn navigation active. */

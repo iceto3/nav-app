@@ -52,3 +52,38 @@ body.oldchart #oldDecor{display:block}
 
 .me .boat{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);filter:drop-shadow(0 1px 2px #0008)}
 .me .boat[hidden],.me .dot[hidden]{display:none}
+
+/* v35 COG/SOG panel (ui/motionPanel.js): top-left under the version badge, inside the safe areas. */
+#motionPanel {
+  position: fixed;
+  z-index: 1900; /* above map controls, below toasts (2000) */
+  left: calc(env(safe-area-inset-left) + 12px);
+  top: calc(env(safe-area-inset-top) + 84px);
+  display: flex;
+  gap: 10px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(20, 30, 45, .82);
+  color: #fff;
+  font: 600 12px/16px Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 4px #0004;
+}
+#motionPanel[hidden] {
+  display: none;
+}
+#motionPanel .cog {
+  min-width: 58px;
+}
+#motionPanel .sog {
+  min-width: 72px;
+}
+body.oldchart #motionPanel {
+  background: rgba(233, 220, 192, .92);
+  color: #4a3018;
+  border: 1px solid #6b4a2b;
+  font-family: Georgia, serif;
+  font-style: italic;
+}

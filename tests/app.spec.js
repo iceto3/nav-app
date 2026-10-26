@@ -1,6 +1,6 @@
 // Runtime checks of the app on both bases: no errors, same style/icons as v33, popups, search, layer switcher.
 import { test, expect } from '@playwright/test';
-import { BASE_URL, REF_URL, MAP, collectErrors, openApp, normStyle, settle } from './helpers.js';
+import { APP_VERSION, BASE_URL, REF_URL, MAP, collectErrors, openApp, normStyle, settle } from './helpers.js';
 
 const LEFKADA = { lat: 38.7608, lon: 20.7195, z: 16.4 };
 const BASES = ['sat', 'old'];
@@ -11,7 +11,7 @@ for (const base of BASES) {
       const errs = collectErrors(page);
       await openApp(page, BASE_URL, { ...LEFKADA, base });
       const info = await page.evaluate(() => ({ v: NavApp.version, badge: document.querySelector('#appVer').textContent, old: document.body.classList.contains('oldchart'), frozen: Object.isFrozen(NavApp) }));
-      expect(info.v).toBe('v34'); expect(info.badge).toBe('v34'); expect(info.old).toBe(base === 'old'); expect(info.frozen).toBe(true);
+      expect(info.v).toBe(APP_VERSION); expect(info.badge).toBe(APP_VERSION); expect(info.old).toBe(base === 'old'); expect(info.frozen).toBe(true);
       expect(errs).toEqual([]);
     });
 

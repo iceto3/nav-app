@@ -7,8 +7,8 @@
  * so overlapping/adjacent pieces and OSM land merge seamlessly (no seam at pier roots). Metre geometry -> identical at every zoom.
  * v29: shore/pier/breakwater/land edits render on Old chart only; depth contours on all bases.
  */
-import { registerFeature } from '../core/registry.js?v=34';
-import { COLORS, FONTS } from '../config.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
+import { COLORS, FONTS } from '../config.js?v=35';
 
 const OLD_INK = COLORS.oldInk, FONT_I = FONTS.italic, FONT_OLD = FONTS.old;
 const UE_SHORE = ['==', ['get', 'edit'], 'shore'], UE_LINE = ['==', ['geometry-type'], 'LineString'];

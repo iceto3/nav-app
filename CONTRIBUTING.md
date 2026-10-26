@@ -7,7 +7,7 @@ The deploy script refuses to push if lint or any local test fails.
 1. If it needs data, add a source to `src/map/sources.js`. Put it at the position where its attribution should appear, and put URLs in `config.js` (`URLS` / `DATA_FILES`).
 2. Create `src/layers/myLayer.js`:
    ```js
-   import { registerFeature } from '../core/registry.js?v=34';
+   import { registerFeature } from '../core/registry.js?v=35';
    registerFeature({
      id: 'myLayer',
      layers: [{ slot: 'overlays', spec: { id: 'myLayer', type: 'line', source: 'mySource', layout: { visibility: 'none' }, paint: { 'line-color': '#f00' } } }],
@@ -15,7 +15,7 @@ The deploy script refuses to push if lint or any local test fails.
    });
    ```
    Pick the slot from `LAYER_SLOTS` in `core/registry.js`. Add a new slot there only if no existing band fits.
-3. Import it in the FEATURES block of `src/main.js` (`import './layers/myLayer.js?v=34';`).
+3. Import it in the FEATURES block of `src/main.js` (`import './layers/myLayer.js?v=35';`).
 4. To make it user-toggleable, add an entry to `OVERLAYS` in `map/bases.js`. To react to the toggle elsewhere, listen with `on('overlaychange', …)`.
 5. Run `node scripts/gen-preload.mjs`; the static test fails if you forget.
 
@@ -34,6 +34,10 @@ The deploy script refuses to push if lint or any local test fails.
 - Every SVG needs explicit `width`/`height` attributes and no `<filter>`, because of iOS Safari (see `icons/loader.js`).
 
 ## Conventions
+- Formatting (new modules): max 100 characters per line, one statement per line, 2-space indent, semicolons,
+  single quotes (`.editorconfig`; enforced by the formatting block in `eslint.config.js`; add new files to its list).
+  Legacy compact modules keep their layout; lines you add there should follow the same rules where practical.
+- Pure logic (maths, formatting) goes in DOM-free modules so it can be unit-tested in Node (see `tests/motion.spec.js`).
 - ES modules only. Every relative import ends with the current `?v=NN` (ESLint enforces it).
 - Use JSDoc on exported functions and a `@file` header in each module.
 - Keep `core/` free of feature knowledge, and keep `config.js` free of side effects.

@@ -1,6 +1,6 @@
 /** @file Place, island and water labels (OpenFreeMap), English-first; restyled in Old chart ink. */
-import { registerFeature } from '../core/registry.js?v=34';
-import { FONTS } from '../config.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
+import { FONTS } from '../config.js?v=35';
 
 /** English-first names everywhere; local name only as last resort. */
 const NAME_EN = ['coalesce', ['get', 'name:en'], ['get', 'name_en'], ['get', 'name:latin'], ['get', 'name_int'], ['get', 'name']];

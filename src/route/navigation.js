@@ -1,14 +1,14 @@
 /** @file Turn-by-turn guidance: Start/Stop, voice prompts, progress tracking, rerouting. */
-import { NAV, LOCATION } from '../config.js?v=34';
-import { state } from '../core/state.js?v=34';
-import { $ } from '../core/dom.js?v=34';
-import { on } from '../core/events.js?v=34';
-import { haversine as hav } from '../core/geo.js?v=34';
-import { toast } from '../ui/toast.js?v=34';
-import { startWatch, startCompass } from '../location/boat.js?v=34';
-import { rt, hooks, getRoute } from './router.js?v=34';
-import { fmtDist, fmtTime } from './format.js?v=34';
-import { instr } from './instructions.js?v=34';
+import { NAV, LOCATION } from '../config.js?v=35';
+import { state } from '../core/state.js?v=35';
+import { $ } from '../core/dom.js?v=35';
+import { on } from '../core/events.js?v=35';
+import { haversine as hav } from '../core/geo.js?v=35';
+import { toast } from '../ui/toast.js?v=35';
+import { startWatch, startCompass } from '../location/boat.js?v=35';
+import { rt, hooks, getRoute } from './router.js?v=35';
+import { fmtDist, fmtTime } from './format.js?v=35';
+import { instr } from './instructions.js?v=35';
 
 let voice = false, lastReroute = 0;
 function say(t){if(!voice||!('speechSynthesis' in window))return;const u=new SpeechSynthesisUtterance(t);u.lang='en-GB';

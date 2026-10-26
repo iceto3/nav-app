@@ -1,7 +1,7 @@
 /**
  * @file On-screen error reporter: makes iPhone JS errors visible as a red toast (tap to dismiss).
  */
-import { TIMING } from '../config.js?v=34';
+import { TIMING } from '../config.js?v=35';
 
 let timer = 0;
 /**

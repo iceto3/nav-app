@@ -1,5 +1,5 @@
 /** @file Route line (white casing + blue line) fed by route/router.js. */
-import { registerFeature } from '../core/registry.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
 
 const ROUND = { 'line-join': 'round', 'line-cap': 'round' };
 registerFeature({

@@ -1,11 +1,15 @@
 /**
  * @file v23: range rings (NM) around own position. Added at runtime after icons load (below 'dots').
+ * v35: labels append the ETA at the current SOG ("1 NM · 12 min", location/navFormat.js) and
+ * are redrawn on every 'motion' event.
  * NB: metres/pixel uses 40075016.686/(512·2^z) exactly as v33 did (see ARCHITECTURE.md caveats).
  */
-import { registerFeature } from '../core/registry.js?v=34';
-import { state } from '../core/state.js?v=34';
-import { FONTS, RINGS } from '../config.js?v=34';
-import { metersPerPixel } from '../core/geo.js?v=34';
+import { registerFeature } from '../core/registry.js?v=35';
+import { state } from '../core/state.js?v=35';
+import { FONTS, RINGS } from '../config.js?v=35';
+import { metersPerPixel } from '../core/geo.js?v=35';
+import { on } from '../core/events.js?v=35';
+import { ringLabel } from './navFormat.js?v=35';
 
 let map = null;
 const FONT_I = FONTS.italic, FONT_OLD = FONTS.old;
@@ -17,7 +21,7 @@ export function ringStep(halfNm){for(const s of RINGS.stepsNm)if(halfNm/s<=RINGS
 export function updateRings(){const me=state.me;if(!me||!map||!map.getSource('meRings'))return;const c=map.getCanvas(),half=Math.min(c.clientWidth,c.clientHeight)/2;
   const mpp=metersPerPixel(me[0],map.getZoom()),halfNm=half*mpp/1852*RINGS.reach,st=ringStep(halfNm),F=[];
   for(let k=1;k<=RINGS.max&&k*st<=halfNm;k++){const r=k*st*1852,co=[];for(let i=0;i<=RINGS.segments;i++){const a=i/RINGS.segments*2*Math.PI;co.push([me[1]+r*Math.sin(a)/(111320*Math.cos(me[0]*Math.PI/180)),me[0]+r*Math.cos(a)/110540])}
-    const v=+(k*st).toFixed(2);F.push({type:'Feature',geometry:{type:'LineString',coordinates:co},properties:{}},{type:'Feature',geometry:{type:'Point',coordinates:[me[1],me[0]+r/110540]},properties:{l:v+' NM'}})}
+    const v=+(k*st).toFixed(2);F.push({type:'Feature',geometry:{type:'LineString',coordinates:co},properties:{}},{type:'Feature',geometry:{type:'Point',coordinates:[me[1],me[0]+r/110540]},properties:{l:ringLabel(v,state.sog)}})}
   map.getSource('meRings').setData({type:'FeatureCollection',features:F})}
 
 /** Add the rings source/layers (idempotent). @param {any} m */
@@ -26,7 +30,8 @@ export function initRings(m){map=m;if(map.getSource('meRings'))return;map.addSou
   map.addLayer({id:'meRingLbl',type:'symbol',source:'meRings',filter:['==',['geometry-type'],'Point'],layout:{'text-field':['get','l'],'text-font':FONT_I,'text-size':11,'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#ffffff','text-halo-color':'rgba(0,0,0,.75)','text-halo-width':1.6}},before)}
 
 /** Hook zoom/resize redraws (call once at startup). @param {any} m */
-export function watchRings(m){map=m;map.on('zoomend',updateRings);map.on('resize',updateRings)}
+export function watchRings(m){map=m;map.on('zoomend',updateRings);map.on('resize',updateRings);
+  on('motion',updateRings)}
 
 registerFeature({
   id: 'rangeRings',
